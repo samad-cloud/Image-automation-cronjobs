@@ -23,33 +23,53 @@ export abstract class BaseJob {
   }
 
   protected async startRun(metadata?: Json) {
-    const { data, error } = await this.supabase
-      .from('test_job_runs')
-      .insert({
-        job_name: this.jobName,
-        instance_id: this.instanceId,
-        metadata
-      })
-      .select()
-      .single()
+    console.log(`[${this.jobName.toUpperCase()}] Starting job run...`);
+    try {
+      const { data, error } = await this.supabase
+        .from('test_job_runs')
+        .insert({
+          job_name: this.jobName,
+          instance_id: this.instanceId,
+          metadata
+        })
+        .select()
+        .single()
 
-    if (error) throw error
-    this.currentRunId = data.id
+      if (error) {
+        console.error(`[${this.jobName.toUpperCase()}] Error starting job run:`, error);
+        throw error;
+      }
+      this.currentRunId = data.id;
+      console.log(`[${this.jobName.toUpperCase()}] Job run started with ID: ${this.currentRunId}`);
+    } catch (error) {
+      console.error(`[${this.jobName.toUpperCase()}] Failed to start job run:`, error);
+      throw error;
+    }
   }
 
   protected async completeRun(error?: Error) {
-    if (!this.currentRunId) return
+    if (!this.currentRunId) {
+      console.log(`[${this.jobName.toUpperCase()}] No current run ID to complete`);
+      return;
+    }
 
-    await this.supabase
-      .from('test_job_runs')
-      .update({
-        status: error ? 'failed' : 'completed',
-        completed_at: new Date().toISOString(),
-        error: error?.message
-      })
-      .eq('id', this.currentRunId)
+    console.log(`[${this.jobName.toUpperCase()}] Completing job run ${this.currentRunId} with status: ${error ? 'failed' : 'completed'}`);
+    try {
+      await this.supabase
+        .from('test_job_runs')
+        .update({
+          status: error ? 'failed' : 'completed',
+          completed_at: new Date().toISOString(),
+          error: error?.message
+        })
+        .eq('id', this.currentRunId);
 
-    this.currentRunId = undefined
+      console.log(`[${this.jobName.toUpperCase()}] Job run ${this.currentRunId} completed successfully`);
+      this.currentRunId = undefined;
+    } catch (error) {
+      console.error(`[${this.jobName.toUpperCase()}] Error completing job run:`, error);
+      throw error;
+    }
   }
 
   abstract execute(): Promise<void>

@@ -37,26 +37,42 @@ async function getSingleProductDescription(
 }
 
 export async function generateImagePrompts(trigger: string) {
+  console.log('[AGENT-WORKFLOW] Starting image prompt generation...');
+  console.log('[AGENT-WORKFLOW] Trigger:', trigger);
+  
   const startTime = Date.now();
   const defaultStyle = 'lifestyle_no_subject,lifestyle_with_subject,lifestyle_emotional';
   const defaultSceneModel = 'o4-mini';
   const runner = new Runner();
+  
+  console.log('[AGENT-WORKFLOW] Running classification agent...');
   const classify = await runner.run(classificationAgent, trigger);
   const { isSingleProduct, productName } = classify.finalOutput ?? { isSingleProduct: false, productName: '' };
+  console.log('[AGENT-WORKFLOW] Classification result:', { isSingleProduct, productName });
 
+  console.log('[AGENT-WORKFLOW] Running persona agent...');
   const personaOutput = await runner.run(personaAgent, trigger);
   const persona = personaOutput.finalOutput?.persona;
+  console.log('[AGENT-WORKFLOW] Persona result:', persona);
+  
   const productList = isSingleProduct
     ? [productName]
     : parseProductsFromString(JSON.stringify(personaOutput.finalOutput)).map(cleanProductName);
+  console.log('[AGENT-WORKFLOW] Product list:', productList);
 
+  console.log('[AGENT-WORKFLOW] Getting product descriptions...');
   const productDescriptions = await Promise.all(
-    productList.map(name =>
-      runner.run(productAgent, name).then(r => r.finalOutput)
-    )
+    productList.map(async (name, index) => {
+      console.log(`[AGENT-WORKFLOW] Getting description for product ${index + 1}/${productList.length}: ${name}`);
+      const result = await runner.run(productAgent, name);
+      console.log(`[AGENT-WORKFLOW] Product description result for ${name}:`, result.finalOutput);
+      return result.finalOutput;
+    })
   );
+  console.log('[AGENT-WORKFLOW] All product descriptions retrieved');
 
   // Step 4: Generate prompts for each style
+  console.log('[AGENT-WORKFLOW] Starting prompt generation for different styles...');
   const styleInstructions = isSingleProduct ? SINGLE_STYLE_TO_INSTRUCTIONS : MULTI_STYLE_TO_INSTRUCTIONS;
   const inputText = `
   PERSONA:
@@ -68,13 +84,17 @@ export async function generateImagePrompts(trigger: string) {
     .map(desc => `Product: ${desc?.product_name}\nComplete Description:\n${desc?.product_description}`)
     .join('\n')}
   `;
+  console.log('[AGENT-WORKFLOW] Input text prepared for prompt generation');
 
   const generatedPrompts: GeneratedPromptsResponse[] = [];
   const styles = defaultStyle.split(',');
+  console.log('[AGENT-WORKFLOW] Styles to process:', styles);
+  
   for (const style of styles) {
+    console.log(`[AGENT-WORKFLOW] Processing style: ${style}`);
     const instructions = styleInstructions[style as StyleKey];
     if (!instructions) {
-      console.error(`Unknown style: ${style}`);
+      console.error(`[AGENT-WORKFLOW] Unknown style: ${style}`);
       continue;
     }
 
@@ -85,21 +105,22 @@ export async function generateImagePrompts(trigger: string) {
       outputType: ImagePromptVariantSchema
     });
 
-    console.log(`\n=== ${style.replace(/_/g, ' ').toUpperCase()} ===`);
+    console.log(`[AGENT-WORKFLOW] Running agent for style: ${style}`);
     const result = await runner.run(agent, inputText);
     if (result.finalOutput) {
       generatedPrompts.push({
         style,
         variant: result.finalOutput
       });
-      console.log(JSON.stringify(result.finalOutput, null, 2));
+      console.log(`[AGENT-WORKFLOW] Successfully generated prompt for style: ${style}`);
     } else {
-      console.log('No output generated');
+      console.log(`[AGENT-WORKFLOW] No output generated for style: ${style}`);
     }
   }
 
   const totalTime = (Date.now() - startTime) / 1000;  
-  console.log(`\nTotal time taken: ${totalTime.toFixed(2)} seconds`);
+  console.log(`[AGENT-WORKFLOW] Total time taken: ${totalTime.toFixed(2)} seconds`);
+  console.log(`[AGENT-WORKFLOW] Generated ${generatedPrompts.length} prompts successfully`);
 
   return generatedPrompts;
 } 

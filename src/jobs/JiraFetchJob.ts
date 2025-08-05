@@ -6,63 +6,84 @@ export class JiraFetchJob extends BaseJob {
     super('jira-fetch')
   }
 
-  async execute(): Promise<void> {
+    async execute(): Promise<void> {
+    console.log(`[${this.jobName.toUpperCase()}] Starting Jira fetch execution loop...`);
     while (true) {
       try {
-      await this.startRun()
+        console.log(`[${this.jobName.toUpperCase()}] Starting new fetch cycle...`);
+        await this.startRun()
 
-      const jiraUrl = process.env.JIRA_URL
-      const username = process.env.JIRA_USERNAME
-      const apiToken = process.env.JIRA_API
+        const jiraUrl = process.env.JIRA_URL
+        const username = process.env.JIRA_USERNAME
+        const apiToken = process.env.JIRA_API
 
-      if (!jiraUrl || !username || !apiToken) {
-        throw new Error('Missing JIRA credentials')
-      }
+        console.log(`[${this.jobName.toUpperCase()}] Checking Jira credentials...`);
+        if (!jiraUrl || !username || !apiToken) {
+          console.error(`[${this.jobName.toUpperCase()}] Missing JIRA credentials:`, {
+            jiraUrl: !!jiraUrl,
+            username: !!username,
+            apiToken: !!apiToken
+          });
+          throw new Error('Missing JIRA credentials')
+        }
+        console.log(`[${this.jobName.toUpperCase()}] Jira credentials validated`);
 
-      const authHeader = `Basic ${Buffer.from(`${username}:${apiToken}`).toString('base64')}`
-      const jql = `project = "EMCP" AND issuetype = "Email" AND due > startOfMonth() AND due < endOfMonth()`
+              console.log(`[${this.jobName.toUpperCase()}] Making Jira API request...`);
+        const authHeader = `Basic ${Buffer.from(`${username}:${apiToken}`).toString('base64')}`
+        const jql = `project = "EMCP" AND issuetype = "Email" AND due > startOfMonth() AND due < endOfMonth()`
+        console.log(`[${this.jobName.toUpperCase()}] JQL Query: ${jql}`);
 
-      const response = await axios.post(
-        `${jiraUrl}/rest/api/3/search`,
-        {
-          jql,
-          fields: ['summary', 'description', 'duedate', 'issuetype']
-        },
-        {
-          headers: {
-            'Authorization': authHeader,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
+        const response = await axios.post(
+          `${jiraUrl}/rest/api/3/search`,
+          {
+            jql,
+            fields: ['summary', 'description', 'duedate', 'issuetype']
+          },
+          {
+            headers: {
+              'Authorization': authHeader,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            }
+          }
+        )
+        console.log(`[${this.jobName.toUpperCase()}] Jira API response received. Issues found: ${response.data.issues?.length || 0}`);
+
+              console.log(`[${this.jobName.toUpperCase()}] Processing ${response.data.issues.length} issues...`);
+        for (const issue of response.data.issues) {
+          console.log(`[${this.jobName.toUpperCase()}] Processing issue: ${issue.key}`);
+          const eventData = this.parseJiraEvent(issue)
+          console.log(`[${this.jobName.toUpperCase()}] Parsed event data:`, eventData);
+          
+          try {
+            await this.supabase
+              .from('test_calendar_events')
+              .upsert({
+                jira_id: issue.key,
+                ...eventData
+              }, {
+                onConflict: 'jira_id'
+              });
+            console.log(`[${this.jobName.toUpperCase()}] Successfully upserted issue: ${issue.key}`);
+          } catch (error) {
+            console.error(`[${this.jobName.toUpperCase()}] Error upserting issue ${issue.key}:`, error);
           }
         }
-      )
 
-      for (const issue of response.data.issues) {
-        const eventData = this.parseJiraEvent(issue)
+              console.log(`[${this.jobName.toUpperCase()}] Fetch cycle completed successfully`);
+        await this.completeRun()
         
-        await this.supabase
-          .from('test_calendar_events')
-          .upsert({
-            jira_id: issue.key,
-            ...eventData
-          }, {
-            onConflict: 'jira_id'
-          })
+        // Wait for 1 hour before next fetch
+        console.log(`[${this.jobName.toUpperCase()}] Waiting for 1 hour before next fetch...`);
+        await new Promise(resolve => setTimeout(resolve, 60 * 60 * 1000));
+      } catch (error) {
+        console.error(`[${this.jobName.toUpperCase()}] Error in JiraFetchJob:`, error);
+        await this.completeRun(error as Error);
+        
+        // Wait for 5 minutes before retrying on error
+        console.log(`[${this.jobName.toUpperCase()}] Error occurred, retrying in 5 minutes...`);
+        await new Promise(resolve => setTimeout(resolve, 5 * 60 * 1000));
       }
-
-      await this.completeRun()
-      
-      // Wait for 1 hour before next fetch
-      console.log('Waiting for 1 hour before next fetch...');
-      await new Promise(resolve => setTimeout(resolve, 60 * 60 * 1000));
-    } catch (error) {
-      console.error('Error in JiraFetchJob:', error);
-      await this.completeRun(error as Error);
-      
-      // Wait for 5 minutes before retrying on error
-      console.log('Error occurred, retrying in 5 minutes...');
-      await new Promise(resolve => setTimeout(resolve, 5 * 60 * 1000));
-    }
     }
   }
 
