@@ -52,10 +52,31 @@ export class JiraFetchJob extends BaseJob {
               console.log(`[${this.jobName.toUpperCase()}] Processing ${response.data.issues.length} issues...`);
         for (const issue of response.data.issues) {
           console.log(`[${this.jobName.toUpperCase()}] Processing issue: ${issue.key}`);
-          const eventData = this.parseJiraEvent(issue)
-          console.log(`[${this.jobName.toUpperCase()}] Parsed event data:`, eventData);
           
           try {
+            // First check if the event already exists and its status
+            const { data: existingEvent } = await this.supabase
+              .from('test_calendar_events')
+              .select('id, status')
+              .eq('jira_id', issue.key)
+              .single();
+
+            if (existingEvent) {
+              // If event exists and is completed, skip it
+              if (existingEvent.status === 'completed') {
+                console.log(`[${this.jobName.toUpperCase()}] Skipping completed issue: ${issue.key}`);
+                continue;
+              }
+              // If event exists but not completed, update it
+              console.log(`[${this.jobName.toUpperCase()}] Updating existing issue: ${issue.key} (status: ${existingEvent.status})`);
+            } else {
+              // If event doesn't exist, create it
+              console.log(`[${this.jobName.toUpperCase()}] Creating new issue: ${issue.key}`);
+            }
+
+            const eventData = this.parseJiraEvent(issue);
+            console.log(`[${this.jobName.toUpperCase()}] Parsed event data:`, eventData);
+            
             await this.supabase
               .from('test_calendar_events')
               .upsert({
@@ -66,7 +87,7 @@ export class JiraFetchJob extends BaseJob {
               });
             console.log(`[${this.jobName.toUpperCase()}] Successfully upserted issue: ${issue.key}`);
           } catch (error) {
-            console.error(`[${this.jobName.toUpperCase()}] Error upserting issue ${issue.key}:`, error);
+            console.error(`[${this.jobName.toUpperCase()}] Error processing issue ${issue.key}:`, error);
           }
         }
 
