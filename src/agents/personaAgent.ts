@@ -16,6 +16,7 @@ export const personaAgent = new Agent({
 6. If you cannot find a product explicitly mentioned in the vector store, DO NOT suggest alternatives.
 7. Make Sure to return a complete and detailed Audience persona in the output. Do not summarize the persona.
 8. The product names returned should be discrete and to the point.
+9. In case you cannot find products for the persona, return Metal Print, Canvas, and Photo Book.
   `,
   outputType: PersonaResponseSchema,
   tools:[

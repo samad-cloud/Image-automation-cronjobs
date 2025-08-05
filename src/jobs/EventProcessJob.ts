@@ -51,6 +51,15 @@ export class EventProcessJob extends BaseJob {
         console.log(`[${this.jobName.toUpperCase()}] Starting image generation for ${prompts.length} prompts...`);
         for (const [index, prompt] of prompts.entries()) {
           console.log(`[${this.jobName.toUpperCase()}] Processing prompt ${index + 1}/${prompts.length}: ${prompt.style}`);
+          
+          // Skip prompts that contain error messages
+          if (prompt.variant.prompt.toLowerCase().includes('error') || 
+              prompt.variant.prompt.toLowerCase().includes('no products provided') ||
+              prompt.variant.prompt.toLowerCase().includes('cannot find products')) {
+            console.log(`[${this.jobName.toUpperCase()}] Skipping prompt ${index + 1} due to error message`);
+            continue;
+          }
+          
           try {
             console.log(`[${this.jobName.toUpperCase()}] Generating image for prompt: "${prompt.variant.prompt.substring(0, 100)}..."`);
             const imageBuffers = await imageGenerator.generateImages(prompt.variant.prompt, 1);

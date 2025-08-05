@@ -55,9 +55,19 @@ export async function generateImagePrompts(trigger: string) {
   const persona = personaOutput.finalOutput?.persona;
   console.log('[AGENT-WORKFLOW] Persona result:', persona);
   
-  const productList = isSingleProduct
-    ? [productName]
-    : parseProductsFromString(JSON.stringify(personaOutput.finalOutput)).map(cleanProductName);
+  let productList: string[];
+  if (isSingleProduct) {
+    productList = [productName];
+  } else {
+    const personaResponse = personaOutput.finalOutput as any;
+    if (personaResponse?.products && personaResponse.products.length > 0) {
+      productList = personaResponse.products.map(cleanProductName);
+    } else {
+      // Fallback to default products if none found
+      console.log('[AGENT-WORKFLOW] No products found in persona response, using fallback products');
+      productList = ['Metal Print', 'Canvas', 'Photo Book'];
+    }
+  }
   console.log('[AGENT-WORKFLOW] Product list:', productList);
 
   console.log('[AGENT-WORKFLOW] Getting product descriptions...');

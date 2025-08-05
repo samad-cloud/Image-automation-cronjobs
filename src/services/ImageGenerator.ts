@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 
 export class ImageGenerator {
   private client: any;
@@ -8,17 +8,16 @@ export class ImageGenerator {
     if (!process.env.GEMINI_API_KEY) {
       throw new Error('GEMINI_API_KEY is not set');
     }
-    this.client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+    this.client = new GoogleGenAI({apiKey:process.env.GEMINI_API_KEY!});
     console.log('[IMAGE-GENERATOR] Gemini client initialized successfully');
   }
 
   async generateImages(prompt: string, count: number = 1): Promise<Buffer[]> {
     console.log(`[IMAGE-GENERATOR] Generating ${count} image(s) with prompt: "${prompt.substring(0, 100)}..."`);
     try {
-      const model = this.client.getGenerativeModel({ model: 'imagen-4.0-generate-preview-06-06' });
-      console.log('[IMAGE-GENERATOR] Model loaded, making API request...');
-      
-      const response = await model.generateImages({
+      // Use the correct Gemini API for image generation
+      const response = await this.client.models.generate_images({
+        model: 'imagen-4.0-generate-preview-06-06',
         prompt,
         number_of_images: count,
         aspect_ratio: '16:9',
