@@ -9,7 +9,8 @@
     "start:cron": "ts-node cron-job/jiraJob.ts",
     "test:jobs": "ts-node src/testRunner.ts",
     "migrate": "echo 'Run the SQL migration in your Supabase dashboard: supabase/migrations/20240315000000_test_tables.sql'",
-    "setup": "chmod +x setup-linux.sh && ./setup-linux.sh"
+    "setup": "chmod +x setup-linux.sh && ./setup-linux.sh",
+    "start:jobs": "chmod +x start-jobs.sh && ./start-jobs.sh"
   },
   "keywords": [],
   "author": "",

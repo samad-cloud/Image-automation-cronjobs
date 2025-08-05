@@ -51,6 +51,11 @@ This guide will help you deploy the OpenAI Agents TS project on a Linux server.
 
 5. **Start the jobs:**
    ```bash
+   npm run start:jobs
+   ```
+   
+   Or manually:
+   ```bash
    pm2 start ecosystem.config.js
    ```
 
