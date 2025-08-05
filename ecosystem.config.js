@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "jira-fetch",
       script: "npx",
-      args: "ts-node src/jobs/JiraFetchJob.ts",
+      args: "ts-node src/jobs/jiraFetchEntry.ts",
       instances: 1,
       autorestart: true,
       max_restarts: 10,
@@ -18,7 +18,7 @@ module.exports = {
     {
       name: "event-process",
       script: "npx",
-      args: "ts-node src/jobs/EventProcessJob.ts",
+      args: "ts-node src/jobs/eventProcessEntry.ts",
       instances: 2,
       autorestart: true,
       max_restarts: 10,

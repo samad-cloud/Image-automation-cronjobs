@@ -1,5 +1,5 @@
 import { BaseJob } from './BaseJob'
-import { generateImagePrompts } from '../index'
+import { generateImagePrompts } from './agentWorkflow'
 import { ImageGenerator } from '../services/ImageGenerator'
 import { StorageService } from '../services/StorageService'
 
