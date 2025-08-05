@@ -1,4 +1,4 @@
-import './config';
+import '../config';
 import { Runner, Agent } from '@openai/agents';
 import { classificationAgent } from '../agents/classificationAgent';
 import { personaAgent } from '../agents/personaAgent';

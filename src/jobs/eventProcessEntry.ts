@@ -1,4 +1,4 @@
-import './config';
+import '../config';
 import { EventProcessJob } from './EventProcessJob';
 
 console.log('[EVENT-PROCESS] Starting Event Process Job...');

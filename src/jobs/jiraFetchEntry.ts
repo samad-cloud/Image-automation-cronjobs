@@ -1,4 +1,4 @@
-import './config';
+import '../config';
 import { JiraFetchJob } from './JiraFetchJob';
 
 console.log('[JIRA-FETCH] Starting Jira Fetch Job...');
