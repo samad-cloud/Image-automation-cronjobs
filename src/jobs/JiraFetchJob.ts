@@ -8,7 +8,7 @@ export class JiraFetchJob extends BaseJob {
 
   async execute(): Promise<void> {
     while (true) {
-    try {
+      try {
       await this.startRun()
 
       const jiraUrl = process.env.JIRA_URL
