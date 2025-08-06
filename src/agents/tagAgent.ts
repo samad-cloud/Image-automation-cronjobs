@@ -2,8 +2,7 @@ import { Agent, Runner } from '@openai/agents';
 import { z } from 'zod';
 
 const TagResponseSchema = z.object({
-  tags: z.array(z.string()).min(3).max(10),
-  description: z.string().optional()
+  tags: z.array(z.string()).min(3).max(10)
 });
 
 export const tagAgent = new Agent({
