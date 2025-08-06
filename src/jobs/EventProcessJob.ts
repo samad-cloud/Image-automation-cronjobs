@@ -68,7 +68,7 @@ export class EventProcessJob extends BaseJob {
             
             const [imageBuffers, tags] = await Promise.all([
               imageGenerator.generateImages(prompt.variant.prompt, 1),
-              generateTags(prompt.variant.prompt)
+              generateTags(prompt.variant.prompt,event.summary)
             ]);
             
             console.log(`[${this.jobName.toUpperCase()}] Generated ${imageBuffers.length} images and ${tags.length} tags for prompt ${index + 1}`);
