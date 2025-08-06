@@ -2,6 +2,7 @@ import { BaseJob } from './BaseJob'
 import { generateImagePrompts } from './agentWorkflow'
 import { ImageGenerator } from '../services/ImageGenerator'
 import { StorageService } from '../services/StorageService'
+import { generateTags } from '../agents/tagAgent'
 
 export class EventProcessJob extends BaseJob {
   constructor() {
@@ -42,13 +43,14 @@ export class EventProcessJob extends BaseJob {
         const prompts = await generateImagePrompts(event.summary)
         console.log(`[${this.jobName.toUpperCase()}] AI workflow completed. Generated ${prompts.length} prompts`);
 
-        // Generate images for each prompt
-        console.log(`[${this.jobName.toUpperCase()}] Initializing image generation services...`);
+        // Generate images and tags for each prompt
+        console.log(`[${this.jobName.toUpperCase()}] Initializing image generation and tag generation services...`);
         const imageGenerator = new ImageGenerator();
         const storageService = new StorageService(this.supabase);
         const imageUrls: string[] = [];
+        const allTags: string[] = [];
 
-        console.log(`[${this.jobName.toUpperCase()}] Starting image generation for ${prompts.length} prompts...`);
+        console.log(`[${this.jobName.toUpperCase()}] Starting image and tag generation for ${prompts.length} prompts...`);
         for (const [index, prompt] of prompts.entries()) {
           console.log(`[${this.jobName.toUpperCase()}] Processing prompt ${index + 1}/${prompts.length}: ${prompt.style}`);
           
@@ -61,9 +63,18 @@ export class EventProcessJob extends BaseJob {
           }
           
           try {
-            console.log(`[${this.jobName.toUpperCase()}] Generating image for prompt: "${prompt.variant.prompt.substring(0, 100)}..."`);
-            const imageBuffers = await imageGenerator.generateImages(prompt.variant.prompt, 1);
-            console.log(`[${this.jobName.toUpperCase()}] Generated ${imageBuffers.length} images for prompt ${index + 1}`);
+            // Run image generation and tag generation in parallel
+            console.log(`[${this.jobName.toUpperCase()}] Starting parallel image and tag generation for prompt: "${prompt.variant.prompt.substring(0, 100)}..."`);
+            
+            const [imageBuffers, tags] = await Promise.all([
+              imageGenerator.generateImages(prompt.variant.prompt, 1),
+              generateTags(prompt.variant.prompt)
+            ]);
+            
+            console.log(`[${this.jobName.toUpperCase()}] Generated ${imageBuffers.length} images and ${tags.length} tags for prompt ${index + 1}`);
+            
+            // Add tags to the collection
+            allTags.push(...tags);
             
             // Upload each image
             for (const [bufferIndex, buffer] of imageBuffers.entries()) {
@@ -74,10 +85,10 @@ export class EventProcessJob extends BaseJob {
               console.log(`[${this.jobName.toUpperCase()}] Successfully uploaded image: ${publicUrl}`);
             }
           } catch (error) {
-            console.error(`[${this.jobName.toUpperCase()}] Error generating/uploading image for prompt ${index}:`, error);
+            console.error(`[${this.jobName.toUpperCase()}] Error generating/uploading image or tags for prompt ${index}:`, error);
           }
         }
-        console.log(`[${this.jobName.toUpperCase()}] Image generation completed. Total images uploaded: ${imageUrls.length}`);
+        console.log(`[${this.jobName.toUpperCase()}] Image and tag generation completed. Total images uploaded: ${imageUrls.length}, Total tags generated: ${allTags.length}`);
 
         console.log(`[${this.jobName.toUpperCase()}] Updating event status in database...`);
         await this.supabase
@@ -86,6 +97,7 @@ export class EventProcessJob extends BaseJob {
             status: 'completed',
             agent_result: prompts,
             image_urls: imageUrls,
+            tags: allTags,
             updated_at: new Date().toISOString(),
             processed_by: this.instanceId,
             locked_until: null

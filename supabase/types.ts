@@ -22,6 +22,7 @@ export interface Database {
           status: 'pending' | 'processing' | 'completed' | 'failed'
           agent_result: Json | null
           image_urls: string[] | null
+          tags: string[] | null
           processed_by: string | null
           error: string | null
           created_at: string
@@ -40,6 +41,7 @@ export interface Database {
           status?: 'pending' | 'processing' | 'completed' | 'failed'
           agent_result?: Json | null
           image_urls?: string[] | null
+          tags?: string[] | null
           processed_by?: string | null
           error?: string | null
           created_at?: string
@@ -58,6 +60,7 @@ export interface Database {
           status?: 'pending' | 'processing' | 'completed' | 'failed'
           agent_result?: Json | null
           image_urls?: string[] | null
+          tags?: string[] | null
           processed_by?: string | null
           error?: string | null
           created_at?: string
