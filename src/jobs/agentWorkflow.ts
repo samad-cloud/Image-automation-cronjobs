@@ -57,7 +57,7 @@ export async function generateImagePrompts(trigger: string) {
   
   let productList: string[];
   if (isSingleProduct) {
-    productList = [productName];
+    productList = [cleanProductName(productName)];
   } else {
     const personaResponse = personaOutput.finalOutput as any;
     if (personaResponse?.products && personaResponse.products.length > 0) {
