@@ -16,7 +16,7 @@ export const productAgent = new Agent({
   outputType: ProductDescriptionSchema,
   tools:[
     fileSearchTool(vectorStoreId,{
-      maxNumResults: 10,
+      maxNumResults: 20,
       includeSearchResults: true,
 
     })

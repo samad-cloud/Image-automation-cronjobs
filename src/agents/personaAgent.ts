@@ -32,7 +32,7 @@ export const personaAgent = new Agent({
   outputType: PersonaResponseSchema,
   tools:[
     fileSearchTool(vectorStoreId,{
-      maxNumResults: 5,
+      maxNumResults: 20,
       includeSearchResults: true,
     })
   ]
