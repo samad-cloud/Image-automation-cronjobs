@@ -112,8 +112,11 @@ export class JiraFetchJob extends BaseJob {
     const summary = issue.fields.summary
     const [region, productType, ...rest] = summary.split(' ')
     
+    // Filter out unwanted keywords from summary only
+    const filteredSummary = this.filterKeywords(issue.fields.summary)
+    
     return {
-      summary: issue.fields.summary,
+      summary: filteredSummary,
       description: issue.fields.description,
       due_date: issue.fields.duedate,
       region,
@@ -121,5 +124,45 @@ export class JiraFetchJob extends BaseJob {
       campaign_type: rest.join(' '),
       status: 'pending' as const
     }
+  }
+
+  private filterKeywords(text: string): string {
+    if (!text) return text
+
+    // Keywords to exclude (case-insensitive)
+    const excludePatterns = [
+      /\breminder\b/gi,
+      /\bre-send\b/gi,
+      /\bresend\b/gi,
+      /\bv[2-9]\b/gi, // v2, v3, v4, etc.
+      /\bday\s+[1-9]\b/gi, // day 1, day 2, day 3, etc.
+      /\bafternoon\b/gi,
+      /\ba\/b\b/gi,
+      /\bab\b/gi,
+      /\btbd\b/gi,
+      /\bends\s+tonight\b/gi,
+      /\breactivation\b/gi,
+      /\bcountdown\b/gi,
+      /\bdeadline\b/gi,
+      /\blast\s+day\b/gi,
+      /\([^)]*\)/g, // anything in (brackets)
+    ]
+
+    let filteredText = text
+
+    // Apply each pattern
+    excludePatterns.forEach(pattern => {
+      filteredText = filteredText.replace(pattern, '')
+    })
+
+    // Clean up extra whitespace and punctuation
+    filteredText = filteredText
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .replace(/\s*,\s*/g, ', ') // Clean up commas
+      .replace(/\s*\.\s*/g, '. ') // Clean up periods
+      .replace(/\s*-\s*/g, ' - ') // Clean up dashes
+      .trim()
+
+    return filteredText
   }
 }

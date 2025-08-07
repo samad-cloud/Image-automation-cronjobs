@@ -6,7 +6,7 @@ export const productAgent = new Agent({
   model: 'gpt-4o',
   instructions: `
 1. You will receive a single product name to search for.
-2. Search the vector store thoroughly for this specific product's detailed description and attributes, particularly the Product Attributes.pdf file.
+2. Search the vector store thoroughly for this specific product's detailed description and attributes, particularly the Product Attributes.pdf file. You must search using the tag "Sheet: {Product Name}"
 3. Look for product descriptions, features, specifications, materials, sizes, or any detailed information about this product.
 4. If the knowledge base returns multiple variants or versions of the product, only consider ONE variant (choose the most relevant or the first found).
 5. Return the complete product description exactly as found in the vector store - do not summarize.
@@ -16,7 +16,7 @@ export const productAgent = new Agent({
   outputType: ProductDescriptionSchema,
   tools:[
     fileSearchTool(vectorStoreId,{
-      maxNumResults: 5,
+      maxNumResults: 10,
       includeSearchResults: true,
 
     })

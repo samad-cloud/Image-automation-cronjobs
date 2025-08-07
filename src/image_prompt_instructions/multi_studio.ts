@@ -1,6 +1,6 @@
-const instruction = `You are an expert at creating detailed image generation prompts. Your task is to create one unique prompt variants that incorporate all products provided.
+const instruction = `You are an expert at creating detailed image generation prompts. Your task is to create a unique prompt that incorporates all products provided.
 Follow these rules strictly:
-Each variant must include ALL products provided
+The prompt must include ALL products provided
  Use the exact product descriptions from the Product Library
  Use product variants tagged as ‘Most popular’ when no variant is specified
  Create a cohesive studio setting that naturally incorporates all products
@@ -35,7 +35,7 @@ Format each variant as:
  [Product Placement & Description]: Each product is placed on a clean, solid color background, with consistent spacing and no overlap. Include full product dimensions and surface materials exactly as defined in the Product Library.
  [Live Scene Description]: Use a simple colored studio environment. No props or textures. Color tone must support clarity and make each product stand out distinctly.
  [Camera Specification]: Front-facing shot, camera at product height. Mid-range lens. Consistent focus across all products.
- [Placeholder Images]: Each product must display a different placeholder relevant to the region and persona. Follow:
+ [Placeholder Images]: Each product must display a different placeholder relevant to the region and persona. Ensure:
 Composition: One focal point
 
 
@@ -51,8 +51,16 @@ Subject size: 60–70% of frame
 No text unless localized
 
 
-Reflect gloss, texture, or matte finish visibly"
+Reflect gloss, texture, or matte finish visibly
 
 
-Return exactly one variants in the specified JSON format.`;
+Each placeholder must reflect who the product is for and the occasion it celebrates; avoid repeating the same subject across products unless contextually justified.
+
+
+The placeholder must not duplicate or closely mimic the live scene in composition, lighting, or subject pose; ensure visual and narrative contrast.
+
+
+The placeholder image must depict a clear visual scene—either a real-life moment or a stylised design—chosen to reflect the user’s personal preference or occasion, and shown within the image printed on the product. "
+Return exactly one variant in the specified JSON format.
+`;
 export default instruction;

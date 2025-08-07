@@ -85,6 +85,9 @@ export async function generateImagePrompts(trigger: string) {
   console.log('[AGENT-WORKFLOW] Starting prompt generation for different styles...');
   const styleInstructions = isSingleProduct ? SINGLE_STYLE_TO_INSTRUCTIONS : MULTI_STYLE_TO_INSTRUCTIONS;
   const inputText = `
+  TRIGGER:
+  ${trigger}
+
   PERSONA:
   ${persona}
 
@@ -112,7 +115,8 @@ export async function generateImagePrompts(trigger: string) {
       name: `Scene Prompt (${style})`,
       model: defaultSceneModel,
       instructions,
-      outputType: ImagePromptVariantSchema
+      outputType: ImagePromptVariantSchema,
+      toolUseBehavior: 'run_llm_again'
     });
 
     console.log(`[AGENT-WORKFLOW] Running agent for style: ${style}`);

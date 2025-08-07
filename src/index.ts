@@ -112,7 +112,7 @@ async function main() {
   try {
     // Get user input
     const trigger = prompt('Enter trigger: ').trim();
-    const sceneModel = (prompt('Choose scene agent model (o4-mini or gpt-4o): ').trim() || 'o4-mini') as 'o4-mini' | 'gpt-4o';
+    const sceneModel =  'o4-mini';
     const styles = prompt('Enter style(s) separated by comma (e.g., lifestyle_no_subject, studio): ')
       .split(',')
       .map(s => s.trim())
@@ -124,7 +124,10 @@ async function main() {
     // Step 1: Classify if single product
     console.log('\n=== Step 1: Product Classification ===');
     const classify = await runner.run(classificationAgent, trigger);
+    // console.log('Raw classification response:', JSON.stringify(classify, null, 2));
     const { isSingleProduct, productName } = classify.finalOutput ?? { isSingleProduct: false, productName: '' };
+    console.log('isSingleProduct:', isSingleProduct);
+    console.log('productName:', productName);
 
     let persona: string;
     let productDescriptions: ProductDescription[] = [];
@@ -175,6 +178,9 @@ async function main() {
     // Step 4: Generate prompts for each style
     const styleInstructions = isSingleProduct ? SINGLE_STYLE_TO_INSTRUCTIONS : MULTI_STYLE_TO_INSTRUCTIONS;
     const inputText = `
+TRIGGER:
+${trigger}
+
 PERSONA:
 ${persona}
 
