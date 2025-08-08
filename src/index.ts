@@ -112,7 +112,7 @@ async function main() {
   try {
     // Get user input
     const trigger = prompt('Enter trigger: ').trim();
-    const sceneModel =  'o4-mini';
+    const sceneModel =  'gpt-5-mini';
     const styles = prompt('Enter style(s) separated by comma (e.g., lifestyle_no_subject, studio): ')
       .split(',')
       .map(s => s.trim())
@@ -203,7 +203,7 @@ ${productDescriptions
       const agent = new Agent({
         name: `Scene Prompt (${style})`,
         model: sceneModel,
-        instructions,
+        instructions:`${instructions} IMPORANT: KEEP THE PROMPT WORD COUNT UNDER 700 WORDS`,
         outputType: ImagePromptVariantSchema
       });
 

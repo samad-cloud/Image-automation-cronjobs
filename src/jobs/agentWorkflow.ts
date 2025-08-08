@@ -42,7 +42,7 @@ export async function generateImagePrompts(trigger: string) {
   
   const startTime = Date.now();
   const defaultStyle = 'lifestyle_no_subject,lifestyle_with_subject,lifestyle_emotional';
-  const defaultSceneModel = 'o4-mini';
+  const defaultSceneModel = 'gpt-5-mini';
   const runner = new Runner();
   
   console.log('[AGENT-WORKFLOW] Running classification agent...');
@@ -114,9 +114,8 @@ export async function generateImagePrompts(trigger: string) {
     const agent = new Agent({
       name: `Scene Prompt (${style})`,
       model: defaultSceneModel,
-      instructions,
+      instructions:`${instructions} IMPORANT: KEEP THE PROMPT WORD COUNT UNDER 700 WORDS`,
       outputType: ImagePromptVariantSchema,
-      toolUseBehavior: 'run_llm_again'
     });
 
     console.log(`[AGENT-WORKFLOW] Running agent for style: ${style}`);

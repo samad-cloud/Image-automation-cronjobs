@@ -1,8 +1,10 @@
 import { BaseJob } from './BaseJob'
 import { generateImagePrompts } from './agentWorkflow'
 import { ImageGenerator } from '../services/ImageGenerator'
+import { ImagenGenerator } from '../services/ImagenGenerator'
 import { StorageService } from '../services/StorageService'
 import { generateTags } from '../agents/tagAgent'
+import { ImageData, TagData } from '../../supabase/types'
 
 export class EventProcessJob extends BaseJob {
   constructor() {
@@ -43,52 +45,103 @@ export class EventProcessJob extends BaseJob {
         const prompts = await generateImagePrompts(event.summary)
         console.log(`[${this.jobName.toUpperCase()}] AI workflow completed. Generated ${prompts.length} prompts`);
 
-        // Generate images and tags for each prompt
+        // Initialize image generators and storage service
         console.log(`[${this.jobName.toUpperCase()}] Initializing image generation and tag generation services...`);
-        const imageGenerator = new ImageGenerator();
+        const gptImageGenerator = new ImageGenerator();
+        const imagenGenerator = new ImagenGenerator();
         const storageService = new StorageService(this.supabase);
-        const imageUrls: string[] = [];
-        const allTags: string[] = [];
+        
+        const imageData: ImageData[] = [];
+        const tagData: TagData[] = [];
 
-        console.log(`[${this.jobName.toUpperCase()}] Starting image and tag generation for ${prompts.length} prompts...`);
-        for (const [index, prompt] of prompts.entries()) {
-          console.log(`[${this.jobName.toUpperCase()}] Processing prompt ${index + 1}/${prompts.length}: ${prompt.style}`);
+        console.log(`[${this.jobName.toUpperCase()}] Starting dual image and tag generation for ${prompts.length} prompts...`);
+        for (const [promptIndex, prompt] of prompts.entries()) {
+          console.log(`[${this.jobName.toUpperCase()}] Processing prompt ${promptIndex + 1}/${prompts.length}: ${prompt.style}`);
           
           // Skip prompts that contain error messages
           if (prompt.variant.prompt.toLowerCase().includes('error') || 
               prompt.variant.prompt.toLowerCase().includes('no products provided') ||
               prompt.variant.prompt.toLowerCase().includes('cannot find products')) {
-            console.log(`[${this.jobName.toUpperCase()}] Skipping prompt ${index + 1} due to error message`);
+            console.log(`[${this.jobName.toUpperCase()}] Skipping prompt ${promptIndex + 1} due to error message`);
             continue;
           }
           
           try {
-            // Run image generation and tag generation in parallel
-            console.log(`[${this.jobName.toUpperCase()}] Starting parallel image and tag generation for prompt: "${prompt.variant.prompt.substring(0, 100)}..."`);
+            // Generate tags for this prompt (will be used for both images)
+            console.log(`[${this.jobName.toUpperCase()}] Generating tags for prompt ${promptIndex + 1}...`);
+            const tags = await generateTags(prompt.variant.prompt, event.summary);
+            console.log(`[${this.jobName.toUpperCase()}] Generated ${tags.length} tags for prompt ${promptIndex + 1}`);
             
-            const [imageBuffers, tags] = await Promise.all([
-              imageGenerator.generateImages(prompt.variant.prompt, 1),
-              generateTags(prompt.variant.prompt,event.summary)
+            // Generate images with both models in parallel
+            console.log(`[${this.jobName.toUpperCase()}] Starting dual image generation for prompt: "${prompt.variant.prompt.substring(0, 100)}..."`);
+            
+            const [gptImages, imagenImages] = await Promise.all([
+              gptImageGenerator.generateImages(prompt.variant.prompt, 1),
+              imagenGenerator.generateImages(prompt.variant.prompt, 1)
             ]);
             
-            console.log(`[${this.jobName.toUpperCase()}] Generated ${imageBuffers.length} images and ${tags.length} tags for prompt ${index + 1}`);
+            console.log(`[${this.jobName.toUpperCase()}] Generated ${gptImages.length} GPT images and ${imagenImages.length} Imagen images for prompt ${promptIndex + 1}`);
             
-            // Add tags to the collection
-            allTags.push(...tags);
-            
-            // Upload each image
-            for (const [bufferIndex, buffer] of imageBuffers.entries()) {
-              const filename = `${event.jira_id}_${index}_${bufferIndex}.png`;
-              console.log(`[${this.jobName.toUpperCase()}] Uploading image: ${filename}`);
+            // Process GPT images
+            for (const [imageIndex, buffer] of gptImages.entries()) {
+              const filename = `${event.jira_id}_prompt${promptIndex}_gpt_${imageIndex}.png`;
+              console.log(`[${this.jobName.toUpperCase()}] Uploading GPT image: ${filename}`);
               const publicUrl = await storageService.uploadImage(buffer, filename);
-              imageUrls.push(publicUrl);
-              console.log(`[${this.jobName.toUpperCase()}] Successfully uploaded image: ${publicUrl}`);
+              
+              // Add image data
+              imageData.push({
+                url: publicUrl,
+                model: 'gpt-image-1',
+                prompt_index: promptIndex,
+                image_index: imageIndex,
+                filename: filename,
+                generated_at: new Date().toISOString()
+              });
+              
+              // Add tag data for this image
+              tagData.push({
+                tags: tags,
+                prompt_index: promptIndex,
+                image_index: imageIndex,
+                model: 'gpt-image-1'
+              });
+              
+              console.log(`[${this.jobName.toUpperCase()}] Successfully uploaded GPT image: ${publicUrl}`);
             }
+            
+            // Process Imagen images
+            for (const [imageIndex, buffer] of imagenImages.entries()) {
+              const filename = `${event.jira_id}_prompt${promptIndex}_imagen_${imageIndex}.png`;
+              console.log(`[${this.jobName.toUpperCase()}] Uploading Imagen image: ${filename}`);
+              const publicUrl = await storageService.uploadImage(buffer, filename);
+              
+              // Add image data
+              imageData.push({
+                url: publicUrl,
+                model: 'imagen-4.0-ultra',
+                prompt_index: promptIndex,
+                image_index: imageIndex,
+                filename: filename,
+                generated_at: new Date().toISOString()
+              });
+              
+              // Add tag data for this image
+              tagData.push({
+                tags: tags,
+                prompt_index: promptIndex,
+                image_index: imageIndex,
+                model: 'imagen-4.0-ultra'
+              });
+              
+              console.log(`[${this.jobName.toUpperCase()}] Successfully uploaded Imagen image: ${publicUrl}`);
+            }
+            
           } catch (error) {
-            console.error(`[${this.jobName.toUpperCase()}] Error generating/uploading image or tags for prompt ${index}:`, error);
+            console.error(`[${this.jobName.toUpperCase()}] Error generating/uploading images or tags for prompt ${promptIndex}:`, error);
           }
         }
-        console.log(`[${this.jobName.toUpperCase()}] Image and tag generation completed. Total images uploaded: ${imageUrls.length}, Total tags generated: ${allTags.length}`);
+        
+        console.log(`[${this.jobName.toUpperCase()}] Dual image and tag generation completed. Total images uploaded: ${imageData.length}, Total tag sets: ${tagData.length}`);
 
         console.log(`[${this.jobName.toUpperCase()}] Updating event status in database...`);
         await this.supabase
@@ -96,8 +149,8 @@ export class EventProcessJob extends BaseJob {
           .update({
             status: 'completed',
             agent_result: prompts,
-            image_urls: imageUrls,
-            tags: allTags,
+            image_data: imageData,
+            tag_data: tagData,
             updated_at: new Date().toISOString(),
             processed_by: this.instanceId,
             locked_until: null

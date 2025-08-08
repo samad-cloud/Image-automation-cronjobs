@@ -6,6 +6,23 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+// New types for structured image and tag tracking
+export interface ImageData {
+  url: string
+  model: 'gpt-image-1' | 'imagen-4.0-ultra'
+  prompt_index: number
+  image_index: number
+  filename: string
+  generated_at: string
+}
+
+export interface TagData {
+  tags: string[]
+  prompt_index: number
+  image_index: number
+  model: 'gpt-image-1' | 'imagen-4.0-ultra'
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -21,8 +38,8 @@ export interface Database {
           campaign_type: string
           status: 'pending' | 'processing' | 'completed' | 'failed'
           agent_result: Json | null
-          image_urls: string[] | null
-          tags: string[] | null
+          image_data: ImageData[] | null
+          tag_data: TagData[] | null
           processed_by: string | null
           error: string | null
           created_at: string
@@ -40,8 +57,8 @@ export interface Database {
           campaign_type: string
           status?: 'pending' | 'processing' | 'completed' | 'failed'
           agent_result?: Json | null
-          image_urls?: string[] | null
-          tags?: string[] | null
+          image_data?: ImageData[] | null
+          tag_data?: TagData[] | null
           processed_by?: string | null
           error?: string | null
           created_at?: string
@@ -59,8 +76,8 @@ export interface Database {
           campaign_type?: string
           status?: 'pending' | 'processing' | 'completed' | 'failed'
           agent_result?: Json | null
-          image_urls?: string[] | null
-          tags?: string[] | null
+          image_data?: ImageData[] | null
+          tag_data?: TagData[] | null
           processed_by?: string | null
           error?: string | null
           created_at?: string

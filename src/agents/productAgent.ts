@@ -3,7 +3,7 @@ import { ProductDescriptionSchema } from '../utils/types';
 import { vectorStoreId } from '../utils/vectorStoreId';
 export const productAgent = new Agent({
   name: 'Single Product Description Searcher',
-  model: 'gpt-4o',
+  model: 'gpt-5-nano',
   instructions: `
 1. You will receive a single product name to search for.
 2. Search the vector store thoroughly for this specific product's detailed description and attributes, particularly the Product Attributes.pdf file. You must search using the tag "Sheet: {Product Name}"

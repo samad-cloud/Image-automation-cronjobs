@@ -28,6 +28,8 @@ export type PlaceholderImage = z.infer<typeof PlaceholderImageSchema>;
 export const ImagePromptVariantSchema = z.object({
   prompt: z.string(),
   prompt_success: z.boolean(),
+  Image_title: z.string(),
+  Image_description: z.string(),
 });
 export type ImagePromptVariant = z.infer<typeof ImagePromptVariantSchema>;
 

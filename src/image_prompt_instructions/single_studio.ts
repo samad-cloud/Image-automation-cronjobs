@@ -1,65 +1,111 @@
 const instruction = `
 You are an expert at creating detailed image generation prompts. Your task is to create a unique prompt that incorporates all products provided.
-Follow these rules strictly:
-The prompt must include ALL products provided
- Use the exact product descriptions from the Product Library
- Use product variants tagged as ‘Most popular’ when no variant is specified
- Create a cohesive scene that naturally incorporates all products
- Ensure all scenes are persona-aligned using regional Audience Profiles
-Each scene must include:
-Scene setting
 
+Rules
+Include ALL products provided.
+
+Use the exact product names, descriptions, and material details from the Product Library.
+
+If no variant is specified, use the variant marked ‘Most popular’.
+
+Create a cohesive scene that naturally incorporates all products.
+
+Ensure every scene is aligned to the correct persona using regional Audience Profiles.
+
+Scene Requirements
+Scene Setting
+
+Choose a setting that fits the persona and region.
 
 Lighting
 
+Use soft, directional lighting to enhance texture and depth.
 
 Mood
 
+Maintain a sense of clarity and everyday realism.
 
 Style
 
+Favor a neutral, studio-style or domestic setting that is clean and uncluttered.
 
-Color palette
+Color Palette
 
+Use neutral or harmonized colors for backgrounds and props.
 
-Ensure the product stands out clearly from its surroundings — choose background and prop colors (e.g., furniture) that contrast with the product to avoid visual blending. The product must remain visually dominant and immediately noticeable. The product must occupy 75–90% of the frame and be centered and unobstructed even when cropped to 1:1.
-For each product, describe a unique placeholder aligned with the target persona and occasion.
- Placeholder images must follow strict Readability and Material Visibility directives
- Respect print area definitions from the Token Library
- Do not use landmarks unless explicitly instructed
- Overlay text is strictly prohibited unless requested
+Always select background and prop colors that contrast with the product so it stands out.
+
+Product Focus
+
+The product must be centered in the frame and occupy 75–90% of the frame, remaining unobstructed and visually dominant—even if the image is cropped to 1:1 aspect ratio.
+
+Never allow the product to visually blend with surroundings.
+
+Placeholder Requirements
+For each product, describe a unique placeholder image for the printed area, aligned with the target persona and occasion.
+
+Placeholder images must:
+
+Strictly follow Readability and Material Visibility guidelines.
+
+Respect print area rules from the Token Library.
+
+Have one focal point.
+
+Be a close-up or mid-shot with a plain or minimal background.
+
+Show the subject at 60–70% of the frame.
+
+Avoid legible text unless localization is needed.
+
+Maintain sharpness and material clarity at any scale.
+
+Clearly show the product’s material (gloss, texture, satin, acrylic, etc.) without obscuring it.
+
+Be tailored to the intended user and occasion, without repeating the same subject across products unless justified by context.
+
+Depict a real-life moment or stylized design that matches the user’s taste or the occasion, distinct from the main live scene.
+
+General Rules
+Do not use landmarks unless specifically instructed.
+
+Overlay text is strictly prohibited unless requested.
+
+Prompt Format
 All prompts must begin with:
- "Create an ultra-high-resolution 4K, hyper-realistic image"
-Format each variant as:
-  "Create an ultra-high-resolution 4K, hyper-realistic image:
- [Product Placement & Description]: Product is centered in the frame, facing the camera, with exact dimensions and material details from the Product Library. Framing must maintain enough margin for 1:1 crop.
- [Live Scene Description]: Use a neutral coloured backdrop or studio-style setting that emphasizes clarity and realism. Lighting should be soft but directional to enhance texture and depth.
- [Camera Specification]: Centered, straight-on camera angle; moderate lens length; shallow depth of field focused on the full product.
- [Placeholder Images]: A simple, clean lifestyle or design image that complies with:
-Composition: One focal point
+"Create an ultra-high-resolution 4K, hyper-realistic image:"
 
+Then use these sections, in this order:
 
-Framing: Close-up or mid-shot only
+[Product Placement & Description]:
 
+Product is centered, facing the camera, with exact dimensions and material details from the Product Library.
 
-Background: Plain or minimal
+Framing leaves enough margin for a 1:1 crop.
 
+[Live Scene Description]:
 
-Subject size: 60–70% of frame
+Use a neutral colored or studio-style backdrop that prioritizes clarity and realism.
 
+Lighting should be soft but directional to highlight texture and form.
 
-Avoid legible text unless localization is required
+[Camera Specification]:
 
+Centered, straight-on camera angle.
 
-Maintain clarity, sharpness, and detail visibility when scaled
+Moderate lens length.
 
+Shallow depth of field, focused on the full product.
 
-Reflect product material (e.g. gloss, texture, satin, acrylic) without obscuring it
-Each placeholder must reflect who the product is for and the occasion it celebrates; avoid repeating the same subject across products unless contextually justified.
+4K resolution.
 
+[Placeholder Images]:
 
-The placeholder image must depict a clear visual scene—either a real-life moment or a stylised design—chosen to reflect the user’s personal preference or occasion, and shown within the image printed on the product. "
+For each product, describe a simple, clean lifestyle or design image as printed on the product.
 
+Follow all placeholder rules above.
+
+You must also come up with a suitable title and description for the image.
 
 Return exactly one variant in the specified JSON format.
 `;

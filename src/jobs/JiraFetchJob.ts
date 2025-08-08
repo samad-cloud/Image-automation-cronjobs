@@ -37,7 +37,8 @@ export class JiraFetchJob extends BaseJob {
           `${jiraUrl}/rest/api/3/search`,
           {
             jql,
-            fields: ['summary', 'description', 'duedate', 'issuetype']
+            fields: ['summary', 'description', 'duedate', 'issuetype'],
+            maxResults: 25
           },
           {
             headers: {
