@@ -92,6 +92,8 @@ Each product must display a different placeholder image, relevant to the region 
 
 Follow all rules above for composition, framing, background, and material visibility.
 
+IMPORTANT: ENSURE THAT EACH PRODUCT ONLY APPEARS ONCE THOUGHOUT THE IMAGE. SAME PRODUCT SHOULD NOT BE DUPLICATED IN ANY SCENARIO.
+
 You must also come up with a suitable title and description for the image.
 
 Return exactly one variant in the specified JSON format.

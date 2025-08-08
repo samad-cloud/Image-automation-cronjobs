@@ -100,6 +100,8 @@ Focused on the most tactile, dimensional area of each product.
 
 For each product, describe a high-res placeholder as it appears printed/embedded, following all rules above.
 
+IMPORTANT: ENSURE THAT EACH PRODUCT ONLY APPEARS ONCE THOUGHOUT THE IMAGE. SAME PRODUCT SHOULD NOT BE DUPLICATED IN ANY SCENARIO.
+
 You must also come up with a suitable title and description for the image.
 
 Return exactly one variant in the specified JSON format.

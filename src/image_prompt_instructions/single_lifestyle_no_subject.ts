@@ -83,6 +83,10 @@ Placeholder must reflect the intended user and occasion, but not repeat the same
 
 The placeholder must look visually and narratively different from the live scene (no duplicate poses, lighting, or composition).
 
+You must also come up with a suitable title and description for the image.
+
+IMPORTANT: ENSURE THAT EACH PRODUCT ONLY APPEARS ONCE THOUGHOUT THE IMAGE. SAME PRODUCT SHOULD NOT BE DUPLICATED IN ANY SCENARIO.
+
 Return exactly one variant in the required JSON format.
 
 `;

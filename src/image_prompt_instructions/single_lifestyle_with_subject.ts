@@ -92,6 +92,8 @@ For each product, describe a unique placeholder that follows all rules above.
 
 You must also come up with a suitable title and description for the image.
 
+IMPORTANT: ENSURE THAT EACH PRODUCT ONLY APPEARS ONCE THOUGHOUT THE IMAGE. SAME PRODUCT SHOULD NOT BE DUPLICATED IN ANY SCENARIO.
+
 Return exactly one variant in the specified JSON format.
 `;
 export default instruction;

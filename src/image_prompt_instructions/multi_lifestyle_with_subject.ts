@@ -99,7 +99,9 @@ Describe the exact angle, lens type, depth of field, and confirm 4K resolution.
 
 [Placeholder Images]:
 
-For each product, describe a unique placeholder image featuring the same subject in alternate, emotionally relevant settings, following all rules above.
+For each product, describe a unique placeholder image which should match the trigger and emotionally relevant settings, following all rules above.
+
+IMPORTANT: ENSURE THAT EACH PRODUCT ONLY APPEARS ONCE THOUGHOUT THE IMAGE. SAME PRODUCT SHOULD NOT BE DUPLICATED IN ANY SCENARIO.
 
 You must also come up with a suitable title and description for the image.
 

@@ -83,6 +83,9 @@ Each product’s print area shows a unique, context-matching placeholder.
 Follow all rules above for composition, framing, and material visibility.
 
 You must also come up with a suitable title and description for the image.
+
+IMPORTANT: ENSURE THAT EACH PRODUCT ONLY APPEARS ONCE THOUGHOUT THE IMAGE. SAME PRODUCT SHOULD NOT BE DUPLICATED IN ANY SCENARIO.
+
 Return exactly one variant in the specified JSON format.
 
 `;

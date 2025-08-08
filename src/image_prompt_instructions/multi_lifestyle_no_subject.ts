@@ -108,6 +108,8 @@ Each product must have a unique, clearly described placeholder image, integrated
 
 Ensure all placeholder rules above are followed.
 
+IMPORTANT: ENSURE THAT EACH PRODUCT ONLY APPEARS ONCE THOUGHOUT THE IMAGE. SAME PRODUCT SHOULD NOT BE DUPLICATED IN ANY SCENARIO.
+
 You must also come up with a suitable title and description for the image.
 
 Return exactly one variant in the specified JSON format.

@@ -114,7 +114,7 @@ export async function generateImagePrompts(trigger: string) {
     const agent = new Agent({
       name: `Scene Prompt (${style})`,
       model: defaultSceneModel,
-      instructions:`${instructions} IMPORANT: KEEP THE PROMPT WORD COUNT UNDER 700 WORDS`,
+      instructions:`${instructions}`,
       outputType: ImagePromptVariantSchema,
     });
 

@@ -92,6 +92,8 @@ State the exact camera angle, lens, depth of field, and confirm 4K resolution.
 
 For each product, describe a unique placeholder image featuring the same subject, in a different emotional context, as it appears in the print area.
 
+IMPORTANT: ENSURE THAT EACH PRODUCT ONLY APPEARS ONCE THOUGHOUT THE IMAGE. SAME PRODUCT SHOULD NOT BE DUPLICATED IN ANY SCENARIO.
+
 Return exactly one variant in the specified JSON format.
 `;
 export default instruction;

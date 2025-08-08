@@ -55,6 +55,7 @@ Match the persona and gifting occasion.
 Be visually and narratively distinct from the live scene (don’t duplicate pose, lighting, or composition).
 
 Not repeat the same subject across products unless contextually justified.
+IMPORTANT: ENSURE THAT EACH PRODUCT ONLY APPEARS ONCE THOUGHOUT THE IMAGE. SAME PRODUCT SHOULD NOT BE DUPLICATED IN ANY SCENARIO.
 You must also come up with a suitable title and description for the image.
 Return exactly one variant in the specified JSON format.
 `;
