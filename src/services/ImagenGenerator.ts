@@ -8,7 +8,7 @@ export class ImagenGenerator {
     if (!process.env.GOOGLE_API_KEY) {
       throw new Error('GOOGLE_API_KEY is not set');
     }
-    this.client = new GoogleGenAI({apiKey: process.env.GOOGLE_API_KEY});
+    this.client = new GoogleGenAI({apiKey: process.env.GEMINI_API_KEY});
     console.log('[IMAGEN-GENERATOR] Google AI client initialized successfully');
   }
 
