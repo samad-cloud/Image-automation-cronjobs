@@ -7,7 +7,7 @@ const TagResponseSchema = z.object({
 
 export const tagAgent = new Agent({
   name: 'tag-generator',
-  model: 'gpt-4o-mini',
+  model: 'gpt-4.1-mini',
   instructions: `You are a tag generation expert. Your job is to analyze image prompts and generate relevant search tags that would help users find similar images.
 
 Key requirements:

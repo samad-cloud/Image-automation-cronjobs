@@ -4,7 +4,7 @@ import { vectorStoreId } from '../utils/vectorStoreId';
 
 export const personaAgent = new Agent({
   name: 'Persona Selector',
-  model: 'gpt-5-nano',
+  model: 'gpt-4.1-mini',
   instructions: `
 1. ONLY use information directly found in the vector store.
 2. Parse the region from the input campaign trigger.

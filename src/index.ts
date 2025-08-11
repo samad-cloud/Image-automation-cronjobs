@@ -112,7 +112,7 @@ async function main() {
   try {
     // Get user input
     const trigger = prompt('Enter trigger: ').trim();
-    const sceneModel =  'gpt-5-mini';
+    const sceneModel =  'gpt-4.1';
     const styles = prompt('Enter style(s) separated by comma (e.g., lifestyle_no_subject, studio): ')
       .split(',')
       .map(s => s.trim())

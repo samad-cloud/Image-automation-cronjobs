@@ -6,6 +6,7 @@ Strict Rules
 Include ALL products provided.
 Use the exact product descriptions and material/variant details from the Product Library.
 If no variant is specified, use the one tagged ‘Most popular’.
+In the case of Photo Books, display either the opened state or the closed state, never both.
 Align every placeholder contextually to the occasion/campaign and to the persona using regional Audience Profiles.
 Respect print area definitions from the Token Library.
 Overlay text is not allowed unless requested.

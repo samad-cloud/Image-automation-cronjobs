@@ -6,6 +6,7 @@ Strict Rules
 Include ALL products provided.
 Use exact product descriptions (names, surface materials, dimensions) from the Product Library.
 If no variant is specified, use the variant tagged ‘Most popular’.
+In the case of Photo Books, display either the opened state or the closed state, never both.
 Build a cohesive studio setting that incorporates all products naturally, with no overlap.
 Align every scene and placeholders contextually to the occasion/campaign and to the persona using regional Audience Profiles.
 Respect print area definitions from the Token Library.

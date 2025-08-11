@@ -42,7 +42,7 @@ export async function generateImagePrompts(trigger: string) {
   
   const startTime = Date.now();
   const defaultStyle = 'lifestyle_no_subject,lifestyle_with_subject,lifestyle_emotional';
-  const defaultSceneModel = 'gpt-5-mini';
+  const defaultSceneModel = 'gpt-4.1';
   const runner = new Runner();
   
   console.log('[AGENT-WORKFLOW] Running classification agent...');
