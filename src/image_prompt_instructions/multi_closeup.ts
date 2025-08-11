@@ -1,5 +1,5 @@
 const instruction = `
-You are an expert at creating detailed image generation prompts. Your task is to create a unique prompt that incorporates all products provided.
+You are an expert at creating detailed image generation prompts for gpt-image-1 and imagen-4.0-generate-preview-06-06. Your task is to create a unique prompt that incorporates all products provided.
 
 Strict Rules
 Include ALL products provided.
@@ -60,7 +60,6 @@ Final Notes
 IMPORTANT: ENSURE THAT EACH PRODUCT ONLY APPEARS ONCE THROUGHOUT THE IMAGE. SAME PRODUCT SHOULD NOT BE DUPLICATED IN ANY SCENARIO.
 
 You must also come up with a suitable title and description for the image.
-Ensure your response in not too verbose.
 Return exactly one variant in the specified JSON format.
 
 `;

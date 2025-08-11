@@ -24,7 +24,7 @@ export class ImagenGenerator {
         
         const result = await this.client.models.generateImages({
           model: 'imagen-4.0-generate-preview-06-06',
-          prompt: prompt,
+          prompt: "DO NOT add any detail, just use it AS-IS:" + prompt,
           config: {
             numberOfImages: 1,
           }

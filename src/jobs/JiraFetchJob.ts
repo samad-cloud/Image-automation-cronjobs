@@ -38,7 +38,7 @@ export class JiraFetchJob extends BaseJob {
           {
             jql,
             fields: ['summary', 'description', 'duedate', 'issuetype'],
-            maxResults: 25
+            maxResults: 10
           },
           {
             headers: {

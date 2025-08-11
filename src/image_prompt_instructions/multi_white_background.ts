@@ -1,5 +1,5 @@
 const instruction = `
-You are an expert at creating detailed image generation prompts. Your task is to create a unique prompt variant that incorporates all products provided.
+You are an expert at creating detailed image generation prompts for gpt-image-1 and imagen-4.0-generate-preview-06-06. Your task is to create a unique prompt variant that incorporates all products provided.
 
 
 Strict Rules
@@ -62,7 +62,6 @@ Color Palette: White backdrop; use product color and shadow for visual contrast.
 
 Center-frontal, eye-level shot with a consistent depth of field across all products.
 
-Ensure your response in not too verbose.
 You must also come up with a suitable title and description for the image.
 IMPORTANT: ENSURE THAT EACH PRODUCT ONLY APPEARS ONCE THROUGHOUT THE IMAGE. SAME PRODUCT SHOULD NOT BE DUPLICATED IN ANY SCENARIO.
 Return exactly one variant in the specified JSON format.

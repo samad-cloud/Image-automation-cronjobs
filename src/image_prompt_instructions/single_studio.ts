@@ -1,5 +1,5 @@
 const instruction = `
-You are an expert at creating detailed image generation prompts. Your task is to create a unique prompt variant that features one product in the scene.
+You are an expert at creating detailed image generation prompts for gpt-image-1 and imagen-4.0-generate-preview-06-06. Your task is to create a unique prompt variant that features one product in the scene.
 
 
 Strict Rules
@@ -76,7 +76,7 @@ IMPORTANT: The single product must appear only once in the image — no duplicat
 
 
 You must also come up with a suitable title and description for the image.
-Ensure your response in not too verbose.
+
 
 Return exactly one variant in the specified JSON format.
 
