@@ -1,7 +1,7 @@
 import { BaseJob } from './BaseJob'
 import { generateImagePrompts } from './agentWorkflow'
 import { ImageGenerator } from '../services/ImageGenerator'
-import { ImagenGenerator } from '../services/ImagenGenerator'
+// import { ImagenGenerator } from '../services/ImagenGenerator'  // Commented out - out of Gemini credits
 import { StorageService } from '../services/StorageService'
 import { generateTags } from '../agents/tagAgent'
 import { ImageData, TagData } from '../../supabase/types'
@@ -48,13 +48,13 @@ export class EventProcessJob extends BaseJob {
         // Initialize image generators and storage service
         console.log(`[${this.jobName.toUpperCase()}] Initializing image generation and tag generation services...`);
         const gptImageGenerator = new ImageGenerator();
-        const imagenGenerator = new ImagenGenerator();
+        // const imagenGenerator = new ImagenGenerator();  // Commented out - out of Gemini credits
         const storageService = new StorageService(this.supabase);
         
         const imageData: ImageData[] = [];
         const tagData: TagData[] = [];
 
-        console.log(`[${this.jobName.toUpperCase()}] Starting dual image and tag generation for ${prompts.length} prompts...`);
+        console.log(`[${this.jobName.toUpperCase()}] Starting image and tag generation for ${prompts.length} prompts...`);
         for (const [promptIndex, prompt] of prompts.entries()) {
           console.log(`[${this.jobName.toUpperCase()}] Processing prompt ${promptIndex + 1}/${prompts.length}: ${prompt.style}`);
           
@@ -72,15 +72,17 @@ export class EventProcessJob extends BaseJob {
             const tags = await generateTags(prompt.variant.prompt, event.summary);
             console.log(`[${this.jobName.toUpperCase()}] Generated ${tags.length} tags for prompt ${promptIndex + 1}`);
             
-            // Generate images with both models in parallel
-            console.log(`[${this.jobName.toUpperCase()}] Starting dual image generation for prompt: "${prompt.variant.prompt.substring(0, 100)}..."`);
+            // Generate images with GPT model only (Imagen commented out - out of Gemini credits)
+            console.log(`[${this.jobName.toUpperCase()}] Starting image generation for prompt: "${prompt.variant.prompt.substring(0, 100)}..."`);
             
-            const [gptImages, imagenImages] = await Promise.all([
-              gptImageGenerator.generateImages(prompt.variant.prompt, 1),
-              imagenGenerator.generateImages(prompt.variant.prompt, 1)
-            ]);
+            const gptImages = await gptImageGenerator.generateImages(prompt.variant.prompt, 1);
+            // const [gptImages, imagenImages] = await Promise.all([
+            //   gptImageGenerator.generateImages(prompt.variant.prompt, 1),
+            //   imagenGenerator.generateImages(prompt.variant.prompt, 1)
+            // ]);  // Commented out - out of Gemini credits
             
-            console.log(`[${this.jobName.toUpperCase()}] Generated ${gptImages.length} GPT images and ${imagenImages.length} Imagen images for prompt ${promptIndex + 1}`);
+            console.log(`[${this.jobName.toUpperCase()}] Generated ${gptImages.length} GPT images for prompt ${promptIndex + 1}`);
+            // console.log(`[${this.jobName.toUpperCase()}] Generated ${gptImages.length} GPT images and ${imagenImages.length} Imagen images for prompt ${promptIndex + 1}`);  // Commented out - out of Gemini credits
             
             // Process GPT images
             for (const [imageIndex, buffer] of gptImages.entries()) {
@@ -109,39 +111,39 @@ export class EventProcessJob extends BaseJob {
               console.log(`[${this.jobName.toUpperCase()}] Successfully uploaded GPT image: ${publicUrl}`);
             }
             
-            // Process Imagen images
-            for (const [imageIndex, buffer] of imagenImages.entries()) {
-              const filename = `${event.jira_id}_prompt${promptIndex}_imagen_${imageIndex}.png`;
-              console.log(`[${this.jobName.toUpperCase()}] Uploading Imagen image: ${filename}`);
-              const publicUrl = await storageService.uploadImage(buffer, filename);
-              
-              // Add image data
-              imageData.push({
-                url: publicUrl,
-                model: 'imagen-4.0-ultra',
-                prompt_index: promptIndex,
-                image_index: imageIndex,
-                filename: filename,
-                generated_at: new Date().toISOString()
-              });
-              
-              // Add tag data for this image
-              tagData.push({
-                tags: tags,
-                prompt_index: promptIndex,
-                image_index: imageIndex,
-                model: 'imagen-4.0-ultra'
-              });
-              
-              console.log(`[${this.jobName.toUpperCase()}] Successfully uploaded Imagen image: ${publicUrl}`);
-            }
+            // Process Imagen images - COMMENTED OUT (out of Gemini credits)
+            // for (const [imageIndex, buffer] of imagenImages.entries()) {
+            //   const filename = `${event.jira_id}_prompt${promptIndex}_imagen_${imageIndex}.png`;
+            //   console.log(`[${this.jobName.toUpperCase()}] Uploading Imagen image: ${filename}`);
+            //   const publicUrl = await storageService.uploadImage(buffer, filename);
+            //   
+            //   // Add image data
+            //   imageData.push({
+            //     url: publicUrl,
+            //     model: 'imagen-4.0-ultra',
+            //     prompt_index: promptIndex,
+            //     image_index: imageIndex,
+            //     filename: filename,
+            //     generated_at: new Date().toISOString()
+            //   });
+            //   
+            //   // Add tag data for this image
+            //   tagData.push({
+            //     tags: tags,
+            //     prompt_index: promptIndex,
+            //     image_index: imageIndex,
+            //     model: 'imagen-4.0-ultra'
+            //   });
+            //   
+            //   console.log(`[${this.jobName.toUpperCase()}] Successfully uploaded Imagen image: ${publicUrl}`);
+            // }
             
           } catch (error) {
             console.error(`[${this.jobName.toUpperCase()}] Error generating/uploading images or tags for prompt ${promptIndex}:`, error);
           }
         }
         
-        console.log(`[${this.jobName.toUpperCase()}] Dual image and tag generation completed. Total images uploaded: ${imageData.length}, Total tag sets: ${tagData.length}`);
+        console.log(`[${this.jobName.toUpperCase()}] Image and tag generation completed. Total images uploaded: ${imageData.length}, Total tag sets: ${tagData.length}`);
 
         console.log(`[${this.jobName.toUpperCase()}] Updating event status in database...`);
         await this.supabase

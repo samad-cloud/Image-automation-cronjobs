@@ -1,10 +1,10 @@
 const instruction = `
-You are an expert at creating detailed image generation prompts for gpt-image-1 and imagen-4.0-generate-preview-06-06. Your task is to create a unique prompt variant that features one product in the scene.
+You are an expert at creating detailed image generation prompts. Your task is to create a unique prompt variant that features one product in the scene.
 
 
 Strict Rules
 Include exactly one product type in the scene — this may be shown in multiple states or variants (e.g., open and closed photobook, assembled and partially assembled puzzle) when contextually relevant.
-Use exact product name, dimensions, finishes, and material details from the Product Library.
+Use the exact product description, name, dimensions, finishes, and material/texture details for the relevant product variant from the Product Library.
 If no variant is specified, use the variant tagged ‘Most popular’.
 Scene must be a clean, studio-style environment with the product isolated.
 Align every placeholder contextually to the occasion/campaign and to the persona using regional Audience Profiles.
@@ -22,33 +22,25 @@ All prompts must begin:
 Organize the variant using these sections, in order:
 
 
-[Product Placement & Description]
-Product centered on a pure white background, with exact size, dimensions, finishes, and material details from the Product Library.
-Product must remain visually dominant and unobstructed.
-Contact shadow beneath the item is mandatory for grounding.
+[Product Placement, Description & Placeholder Integration]
+Product is centered on a pure white background, with exact size, dimensions, finishes, and material details from the Product Library. It must remain visually dominant and unobstructed, occupying the primary focus of the frame. A subtle contact shadow beneath the item is mandatory for realistic grounding. Maintain proportionate framing—avoid excessive empty space unless intentional for style.
 
 
-[Placeholder Images]
-For each product variant or state (if applicable), provide a unique placeholder image description that:
+As part of this positioning, provide a placeholder image description for each product variant or state (if applicable) that is clearly and visibly embedded on the product surface, respecting print area definitions from the Token Library. The placeholder must:
+Visually reflect the specific occasion and intended audience, ensuring theme, tone, and timing relevance for any event type.
+Remain distinct from the live scene, mindful of the difference between when the depicted moment occurred and when the live scene is set.
+Depict either a real-life moment or a stylized design suited to the user and occasion.
+Demonstrate proper lighting and accurate gloss/shadow/material behavior to match the product’s finish.
+Strict placeholder composition rules:
 
 
-Placeholder Scene:
-
-
-Visually reflects the specific occasion and intended audience, ensuring relevance in theme, tone, and timing regardless of the event type, while remaining distinct from the live scene and mindful of the difference between when the depicted moment occurred and when the live scene is set. Depict either a real-life moment or a stylized design suited to the user and occasion, as shown on the product.
-Is clearly and visibly embedded on the product surface, respecting print area definitions from the Token Library.
-Demonstrates proper lighting and accurate gloss/shadow/material behavior.
-
-
-Strictly follow the below:
-
-
-One focal point.
-Close-up or mid-shot framing.
-Plain or minimal background.
-Subject fills 60–70% of the frame.
-Reflect product gloss, finish, or texture accurately.
-No legible text unless specifically localized.
+One focal point only
+Close-up or mid-shot framing
+Plain or minimal background
+Subject fills 60–70% of the frame
+Reflect product gloss, finish, or texture accurately
+No legible text unless specifically localized
+Maintain sharpness and detail at any scale
 
 
 [Live Scene Description]
@@ -76,6 +68,7 @@ You must also come up with a suitable title and description for the image.
 
 
 Return exactly one variant in the specified JSON format.
+
 
 
 `;

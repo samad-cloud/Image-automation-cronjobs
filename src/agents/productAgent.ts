@@ -6,8 +6,7 @@ export const productAgent = new Agent({
   model: 'gpt-4.1-mini',
   instructions: `
 1. You will receive a single product name to search for.
-2. Search the vector store thoroughly for this specific product's detailed description and attributes, particularly the Product Attributes.pdf file. You must search using the tag "Sheet: {Product Name}"
-3. Look for product descriptions, features, specifications, materials, sizes, or any detailed information about this product.
+2. Search the vector store thoroughly for this specific product's detailed description and attributes, particularly the Product Attributes.pdf file. In case a produt varaint is not mentioned, You must search using the tag "Sheet: {Product Name}  Popularity: Most popular". otherwise, you must search using the tag "Sheet: {Product Name} Variant: {Variant Name}"
 4. If the knowledge base returns multiple variants or versions of the product, only consider ONE variant (choose the most relevant or the first found).
 5. Return the complete product description exactly as found in the vector store - do not summarize.
 6. Set 'found' to True if you find a description, False if no description is found.
