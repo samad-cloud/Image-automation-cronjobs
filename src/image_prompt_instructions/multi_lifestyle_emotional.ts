@@ -47,6 +47,12 @@ Style: Narrative-rich and realistic, never stylized at the expense of clarity.
 Color Palette: Harmonized but contrastive—use colors and props that make every product visually distinct and readable. Avoid over-saturation, crowding, or visual clutter.
 Human Presence: Must always be included. Interaction must feel natural and the human must be visible fully within the frame, enhancing the emotional tone without reducing product visibility.
 
+Subject Inclusion:
+Fully include a human presence.
+The subject must never distract from or compete with product visibility or dominance—no full portraits.
+Human presence should enhance realism and narrative, not overpower the products.
+
+
 [Camera Specification]
 State the exact camera angle, lens, depth of field, and confirm 4K resolution.
 
