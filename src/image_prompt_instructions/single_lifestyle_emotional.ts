@@ -50,7 +50,10 @@ Style: Narrative-rich and realistic, never stylized at the expense of clarity.
 Color Palette: Harmonized but contrastive—use colors and props that make the product visually distinct and readable. Avoid over-saturation, crowding, or visual clutter.
 Props, furniture, and surfaces should enhance product visibility and separation, using contrast in color or material. Use props only to support realism or convey scale—never to distract from or compete with the product, and never use other products from our own range as props..
 
-
+Subject Inclusion:
+Must always include a human presence.
+The subject must never distract from or compete with product visibility or dominance—no full portraits.
+Human presence should enhance realism and narrative, not overpower the products.
 
 
 [Camera Specification]
