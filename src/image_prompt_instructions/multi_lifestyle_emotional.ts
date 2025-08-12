@@ -40,7 +40,7 @@ Maintain clarity, sharpness, and visibility of the product’s finish (e.g., glo
 
 
 [Live Scene Description]
-Scene Setting: Real-life, emotionally expressive moment (e.g., gifting, surprise, reunion, celebration).
+Scene Setting: Real-life, emotionally expressive moment (e.g., gifting, surprise, reunion, celebration). Should involve a person interacting with the product.
 Lighting: Natural, soft, or directional lighting that supports both the emotional tone and clear product visibility.
 Mood: Emotionally expressive, fitting the event/occasion and persona.
 Style: Narrative-rich and realistic, never stylized at the expense of clarity.
