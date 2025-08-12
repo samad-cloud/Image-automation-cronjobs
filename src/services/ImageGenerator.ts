@@ -25,7 +25,7 @@ export class ImageGenerator {
         
         const result = await this.client.images.generate({
           model: "gpt-image-1",
-          prompt: "DO NOT add any detail, just use it AS-IS:" + prompt,
+          prompt: prompt,
           n:count,
           size: "1536x1024"
         });
