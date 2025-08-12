@@ -40,11 +40,17 @@ Maintain clarity, sharpness, and visibility of the product’s finish (e.g., glo
 
 
 [Live Scene Description]
-Scene Setting: Real-life, emotionally expressive moment (e.g., gifting, surprise, reunion, celebration). Should involve a person interacting with the product.
+Scene Setting: Real-life, emotionally expressive moment (e.g., gifting, surprise, reunion, celebration).
 Lighting: Natural, soft, or directional lighting that supports both the emotional tone and clear product visibility.
 Mood: Emotionally expressive, fitting the event/occasion and persona.
 Style: Narrative-rich and realistic, never stylized at the expense of clarity.
 Color Palette: Harmonized but contrastive—use colors and props that make every product visually distinct and readable. Avoid over-saturation, crowding, or visual clutter.
+
+Subject Inclusion:
+Must always include a human presence.
+The subject must never distract from or compete with product visibility or dominance—no full portraits.
+Human presence should enhance realism and narrative, not overpower the products.
+
 
 [Camera Specification]
 State the exact camera angle, lens, depth of field, and confirm 4K resolution.
