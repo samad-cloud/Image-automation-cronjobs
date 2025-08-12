@@ -45,12 +45,7 @@ Lighting: Natural, soft, or directional lighting that supports both the emotiona
 Mood: Emotionally expressive, fitting the event/occasion and persona.
 Style: Narrative-rich and realistic, never stylized at the expense of clarity.
 Color Palette: Harmonized but contrastive—use colors and props that make every product visually distinct and readable. Avoid over-saturation, crowding, or visual clutter.
-
-Subject Inclusion:
-Must always include a human presence.
-The subject must never distract from or compete with product visibility or dominance—no full portraits.
-Human presence should enhance realism and narrative, not overpower the products.
-
+Human Presence: Must always be included. Interaction must feel natural (e.g., hands turning pages, holding, presenting), enhancing the emotional tone without reducing product visibility.
 
 [Camera Specification]
 State the exact camera angle, lens, depth of field, and confirm 4K resolution.
