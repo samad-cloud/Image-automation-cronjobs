@@ -38,12 +38,16 @@ export class MultiUserEventProcessJob extends BaseJob {
 
         try {
           // Process the event through our new image generation pipeline
-          await this.processCalendarEvent(event)
+          const result = await this.processCalendarEvent(event)
           
-          // Mark event as completed
-          await this.updateCalendarEventStatus(event.id, 'completed')
-          
-          console.log(`[${this.jobName.toUpperCase()}] Event ${event.id} processing completed successfully`);
+          // Double-check that images were actually generated before marking as completed
+          if (result && result.images && result.images.length > 0) {
+            await this.updateCalendarEventStatus(event.id, 'completed')
+            console.log(`[${this.jobName.toUpperCase()}] Event ${event.id} processing completed successfully with ${result.images.length} images`);
+          } else {
+            await this.updateCalendarEventStatus(event.id, 'failed', 'No images were successfully generated')
+            console.log(`[${this.jobName.toUpperCase()}] Event ${event.id} processing failed: No images generated`);
+          }
         } catch (processingError) {
           console.error(`[${this.jobName.toUpperCase()}] Error processing event ${event.id}:`, processingError);
           
@@ -92,7 +96,7 @@ export class MultiUserEventProcessJob extends BaseJob {
     return event
   }
 
-  private async processCalendarEvent(event: CalendarEventRow): Promise<void> {
+  private async processCalendarEvent(event: CalendarEventRow): Promise<{ generation: any, images: any[] }> {
     console.log(`[${this.jobName.toUpperCase()}] Starting image generation for event: ${event.id}`);
 
     // Create the generation request
@@ -109,6 +113,13 @@ export class MultiUserEventProcessJob extends BaseJob {
     const result = await this.generateImages(generationRequest)
     
     console.log(`[${this.jobName.toUpperCase()}] Generated ${result.images.length} images for event: ${event.id}`);
+    
+    // Ensure at least one image was successfully generated
+    if (result.images.length === 0) {
+      throw new Error(`No images were successfully generated for calendar event ${event.id}. Check database storage errors.`);
+    }
+    
+    return result;
   }
 
   private async generateImages(request: GenerationRequest): Promise<{ generation: any, images: any[] }> {
@@ -125,13 +136,13 @@ export class MultiUserEventProcessJob extends BaseJob {
     console.log(`[${this.jobName.toUpperCase()}] Processing ${promptResult.prompts.length} prompts for image generation...`);
     const images = await this.processImageGeneration(generation.id, promptResult, request)
     
-    // Step 4: Create bridge record for calendar-driven generation
-    if (request.source === 'calendar' && request.calendar_event_id) {
-      await this.createCalendarBridge(request.calendar_event_id, generation.id, request)
-    }
+    // Step 4: Bridge record is no longer needed - calendar_event_id is stored directly in images table
+    // The relationship is maintained through the calendar_event_id field in both image_generations and images tables
     
     // Step 5: Update generation record with completion status
-    await this.updateGenerationStatus(generation.id, images.length > 0 ? 'completed' : 'failed', images.map(img => img.id))
+    const status = images.length > 0 ? 'completed' : 'failed';
+    const errorMessage = images.length === 0 ? 'No images were successfully stored due to database errors' : undefined;
+    await this.updateGenerationStatus(generation.id, status, images.map(img => img.id), errorMessage)
     
     return { generation, images }
   }
@@ -353,38 +364,17 @@ export class MultiUserEventProcessJob extends BaseJob {
     return allImages
   }
 
-  private async createCalendarBridge(
-    calendarEventId: string, 
-    generationId: string, 
-    request: GenerationRequest
-  ): Promise<void> {
-    try {
-      await this.supabase
-        .from('calendar_event_generations')
-        .insert({
-          calendar_event_id: calendarEventId,
-          generation_id: generationId,
-          generation_trigger: request.trigger,
-          style_preferences: request.styles,
-          number_of_variations: request.number_of_variations,
-          status: 'completed',
-          completed_at: new Date().toISOString()
-        })
+  // Note: Bridge table logic removed - relationships are maintained through calendar_event_id in images table
 
-      console.log(`[${this.jobName.toUpperCase()}] Created calendar event bridge record`);
-    } catch (error) {
-      console.error(`[${this.jobName.toUpperCase()}] Error creating calendar bridge:`, error);
-    }
-  }
-
-  private async updateGenerationStatus(generationId: string, status: string, imageIds: string[]): Promise<void> {
+  private async updateGenerationStatus(generationId: string, status: string, imageIds: string[], errorMessage?: string): Promise<void> {
     try {
       await this.supabase
         .from('image_generations')
         .update({
           status: status,
           image_ids: imageIds,
-          completed_at: new Date().toISOString()
+          completed_at: new Date().toISOString(),
+          error_message: errorMessage || null
         })
         .eq('id', generationId)
 
