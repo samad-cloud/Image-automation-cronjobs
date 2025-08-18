@@ -98,8 +98,8 @@ This document describes the database schema for the CSV upload and background jo
 ## 📈 Processing Flow
 
 ```
-1. User uploads CSV → csv_batches record created
-2. CSV parsed → csv_row_jobs records created for each row
+1. User uploads CSV/Excel → csv_batches record created
+2. File parsed → csv_row_jobs records created for each row
 3. Batch status → 'queued' → 'processing'
 4. JobOrchestrator starts CSV processing workers
 5. Workers claim jobs using claim_next_csv_row_job()

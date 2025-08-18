@@ -806,4 +806,238 @@ ALTER PUBLICATION supabase_realtime ADD TABLE csv_batches;
 ALTER PUBLICATION supabase_realtime ADD TABLE csv_row_jobs;
 ALTER PUBLICATION supabase_realtime ADD TABLE csv_processing_workers;
 
+-- =====================================================
+-- SQL FUNCTIONS FOR CSV PROCESSING
+-- =====================================================
+
+-- Drop existing functions if they exist (to handle type changes)
+DROP FUNCTION IF EXISTS claim_next_csv_row_job(text, uuid, integer);
+DROP FUNCTION IF EXISTS update_csv_row_job_result(uuid, text, text, jsonb, jsonb, jsonb, numeric, text, jsonb);
+DROP FUNCTION IF EXISTS update_csv_worker_heartbeat(text, text, integer, integer, integer);
+DROP FUNCTION IF EXISTS get_csv_batch_progress(uuid);
+DROP FUNCTION IF EXISTS update_csv_batch_progress(uuid);
+DROP FUNCTION IF EXISTS cleanup_stale_csv_workers(integer);
+DROP FUNCTION IF EXISTS get_available_csv_templates();
+DROP FUNCTION IF EXISTS increment_template_download(uuid);
+
+-- Function to claim the next available CSV row job
+CREATE OR REPLACE FUNCTION claim_next_csv_row_job(
+    p_worker_instance_id TEXT,
+    p_batch_id UUID DEFAULT NULL,
+    p_timeout_minutes INTEGER DEFAULT 15
+) RETURNS SETOF csv_row_jobs AS $$
+DECLARE
+    claimed_job csv_row_jobs;
+BEGIN
+    -- Claim the next available job
+    UPDATE csv_row_jobs 
+    SET 
+        status = 'processing',
+        claimed_by = p_worker_instance_id,
+        claimed_at = NOW(),
+        processing_timeout_at = NOW() + (p_timeout_minutes || ' minutes')::INTERVAL,
+        started_at = NOW()
+    WHERE id = (
+        SELECT id 
+        FROM csv_row_jobs 
+        WHERE status = 'pending' 
+        AND (p_batch_id IS NULL OR batch_id = p_batch_id)
+        AND (claimed_by IS NULL OR processing_timeout_at < NOW())
+        ORDER BY created_at ASC
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+    )
+    RETURNING * INTO claimed_job;
+    
+    IF claimed_job.id IS NOT NULL THEN
+        RETURN NEXT claimed_job;
+    END IF;
+    
+    RETURN;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to update CSV row job results
+CREATE OR REPLACE FUNCTION update_csv_row_job_result(
+    p_job_id UUID,
+    p_status TEXT,
+    p_trigger_text TEXT DEFAULT NULL,
+    p_generated_prompts JSONB DEFAULT NULL,
+    p_generated_images JSONB DEFAULT NULL,
+    p_generated_tags JSONB DEFAULT NULL,
+    p_processing_time_seconds NUMERIC DEFAULT NULL,
+    p_error_message TEXT DEFAULT NULL,
+    p_error_details JSONB DEFAULT NULL
+) RETURNS VOID AS $$
+BEGIN
+    UPDATE csv_row_jobs 
+    SET 
+        status = p_status,
+        trigger_text = COALESCE(p_trigger_text, trigger_text),
+        generated_prompts = COALESCE(p_generated_prompts, generated_prompts),
+        generated_images = COALESCE(p_generated_images, generated_images),
+        generated_tags = COALESCE(p_generated_tags, generated_tags),
+        processing_time_seconds = COALESCE(p_processing_time_seconds, processing_time_seconds),
+        error_message = CASE WHEN p_status = 'failed' THEN p_error_message ELSE NULL END,
+        error_details = CASE WHEN p_status = 'failed' THEN p_error_details ELSE NULL END,
+        last_error_at = CASE WHEN p_status = 'failed' THEN NOW() ELSE last_error_at END,
+        completed_at = CASE WHEN p_status IN ('completed', 'failed') THEN NOW() ELSE completed_at END,
+        retry_count = CASE WHEN p_status = 'failed' THEN retry_count + 1 ELSE retry_count END
+    WHERE id = p_job_id;
+    
+    -- Update batch progress
+    PERFORM update_csv_batch_progress(
+        (SELECT batch_id FROM csv_row_jobs WHERE id = p_job_id)
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to update worker heartbeat
+CREATE OR REPLACE FUNCTION update_csv_worker_heartbeat(
+    p_instance_id TEXT,
+    p_status TEXT DEFAULT 'processing',
+    p_current_job_count INTEGER DEFAULT 0,
+    p_jobs_completed_delta INTEGER DEFAULT 0,
+    p_jobs_failed_delta INTEGER DEFAULT 0
+) RETURNS VOID AS $$
+BEGIN
+    INSERT INTO csv_processing_workers (
+        instance_id,
+        status,
+        current_job_count,
+        jobs_completed,
+        jobs_failed,
+        last_heartbeat
+    ) VALUES (
+        p_instance_id,
+        p_status,
+        p_current_job_count,
+        p_jobs_completed_delta,
+        p_jobs_failed_delta,
+        NOW()
+    )
+    ON CONFLICT (instance_id) DO UPDATE SET
+        status = EXCLUDED.status,
+        current_job_count = EXCLUDED.current_job_count,
+        jobs_completed = csv_processing_workers.jobs_completed + EXCLUDED.jobs_completed,
+        jobs_failed = csv_processing_workers.jobs_failed + EXCLUDED.jobs_failed,
+        last_heartbeat = NOW();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get batch progress
+CREATE OR REPLACE FUNCTION get_csv_batch_progress(p_batch_id UUID)
+RETURNS TABLE (
+    total_jobs BIGINT,
+    pending_jobs BIGINT,
+    processing_jobs BIGINT,
+    completed_jobs BIGINT,
+    failed_jobs BIGINT,
+    progress_percentage NUMERIC
+) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(*) as total_jobs,
+        COUNT(*) FILTER (WHERE status = 'pending') as pending_jobs,
+        COUNT(*) FILTER (WHERE status = 'processing') as processing_jobs,
+        COUNT(*) FILTER (WHERE status = 'completed') as completed_jobs,
+        COUNT(*) FILTER (WHERE status = 'failed') as failed_jobs,
+        CASE 
+            WHEN COUNT(*) = 0 THEN 0
+            ELSE ROUND((COUNT(*) FILTER (WHERE status IN ('completed', 'failed'))::NUMERIC / COUNT(*)::NUMERIC) * 100, 2)
+        END as progress_percentage
+    FROM csv_row_jobs 
+    WHERE batch_id = p_batch_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to update batch progress and status
+CREATE OR REPLACE FUNCTION update_csv_batch_progress(p_batch_id UUID)
+RETURNS VOID AS $$
+DECLARE
+    progress_info RECORD;
+    batch_info RECORD;
+BEGIN
+    -- Get progress information
+    SELECT * INTO progress_info FROM get_csv_batch_progress(p_batch_id);
+    
+    -- Get current batch info
+    SELECT status, total_rows INTO batch_info FROM csv_batches WHERE id = p_batch_id;
+    
+    -- Update batch status based on progress
+    UPDATE csv_batches 
+    SET 
+        processed_rows = progress_info.completed_jobs + progress_info.failed_jobs,
+        failed_rows = progress_info.failed_jobs,
+        progress_percentage = progress_info.progress_percentage,
+        status = CASE 
+            WHEN progress_info.pending_jobs = 0 AND progress_info.processing_jobs = 0 THEN 
+                CASE WHEN progress_info.failed_jobs = 0 THEN 'completed' ELSE 'failed' END
+            WHEN progress_info.processing_jobs > 0 OR batch_info.status = 'queued' THEN 'processing'
+            ELSE batch_info.status
+        END,
+        processing_started_at = CASE 
+            WHEN batch_info.status = 'queued' AND progress_info.processing_jobs > 0 THEN NOW()
+            ELSE (SELECT processing_started_at FROM csv_batches WHERE id = p_batch_id)
+        END,
+        processing_completed_at = CASE 
+            WHEN progress_info.pending_jobs = 0 AND progress_info.processing_jobs = 0 THEN NOW()
+            ELSE NULL
+        END
+    WHERE id = p_batch_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to cleanup stale workers
+CREATE OR REPLACE FUNCTION cleanup_stale_csv_workers(p_timeout_minutes INTEGER DEFAULT 30)
+RETURNS INTEGER AS $$
+DECLARE
+    cleaned_count INTEGER;
+BEGIN
+    -- Reset jobs claimed by stale workers
+    UPDATE csv_row_jobs 
+    SET 
+        status = 'pending',
+        claimed_by = NULL,
+        claimed_at = NULL,
+        processing_timeout_at = NULL,
+        started_at = NULL
+    WHERE status = 'processing' 
+    AND processing_timeout_at < NOW() - (p_timeout_minutes || ' minutes')::INTERVAL;
+    
+    GET DIAGNOSTICS cleaned_count = ROW_COUNT;
+    
+    -- Mark stale workers as stopped
+    UPDATE csv_processing_workers 
+    SET status = 'stopped'
+    WHERE last_heartbeat < NOW() - (p_timeout_minutes || ' minutes')::INTERVAL
+    AND status != 'stopped';
+    
+    RETURN cleaned_count;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get available templates
+CREATE OR REPLACE FUNCTION get_available_csv_templates()
+RETURNS SETOF csv_templates AS $$
+BEGIN
+    RETURN QUERY
+    SELECT * FROM csv_templates 
+    ORDER BY is_default DESC, created_at ASC;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to increment template download count
+CREATE OR REPLACE FUNCTION increment_template_download(p_template_id UUID)
+RETURNS VOID AS $$
+BEGIN
+    UPDATE csv_templates 
+    SET 
+        download_count = download_count + 1,
+        last_downloaded_at = NOW()
+    WHERE id = p_template_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 COMMIT;

@@ -81,8 +81,8 @@ export class CSVProcessJob extends BaseJob {
     const { data: jobs, error } = await this.supabase
       .from('csv_row_jobs')
       .select('id')
-      .eq('status', 'queued')
-      .is('worker_instance_id', null)
+      .eq('status', 'pending')
+      .is('claimed_by', null)
       .limit(1)
 
     if (error) {
