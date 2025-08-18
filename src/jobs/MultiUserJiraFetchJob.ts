@@ -154,6 +154,23 @@ export class MultiUserJiraFetchJob extends BaseJob {
   private async fetchJiraIssuesForUser(userId: string, config: any): Promise<void> {
     const { domain, username, apiKey, projectName, issueType } = config;
     
+    // Get user's calendar first to check fetch limit
+    const { data: calendar } = await this.supabase
+      .from('calendars')
+      .select('id, fetch_limit')
+      .eq('user_id', userId)
+      .eq('provider', 'JIRA')
+      .single();
+
+    if (!calendar) {
+      console.error(`[${this.jobName.toUpperCase()}] No Jira calendar found for user ${userId}`);
+      return;
+    }
+
+    // Use user's configured fetch limit (default 200, max 1000)
+    const fetchLimit = calendar.fetch_limit || 200;
+    console.log(`[${this.jobName.toUpperCase()}] Using fetch limit: ${fetchLimit} for user ${userId}`);
+    
     console.log(`[${this.jobName.toUpperCase()}] Making Jira API request for user ${userId}...`);
     const authHeader = `Basic ${Buffer.from(`${username}:${apiKey}`).toString('base64')}`;
     const jql = `project = "${projectName}" AND issuetype = "${issueType}" AND due > startOfMonth() AND due < endOfMonth()`;
@@ -165,7 +182,7 @@ export class MultiUserJiraFetchJob extends BaseJob {
       {
         jql,
         fields: ['summary', 'description', 'duedate', 'issuetype'],
-        maxResults: 100 // Limit to prevent overwhelming the system
+        maxResults: fetchLimit
       },
       {
         headers: {
@@ -177,23 +194,10 @@ export class MultiUserJiraFetchJob extends BaseJob {
     );
 
     const issues = response.data.issues || [];
-    console.log(`[${this.jobName.toUpperCase()}] Jira API response received for user ${userId}. Issues found: ${issues.length}`);
+    console.log(`[${this.jobName.toUpperCase()}] Jira API response received for user ${userId}. Issues found: ${issues.length} (limit: ${fetchLimit})`);
 
     if (issues.length === 0) {
       console.log(`[${this.jobName.toUpperCase()}] No issues found for user ${userId}`);
-      return;
-    }
-
-    // Get user's calendar for storing events
-    const { data: calendar } = await this.supabase
-      .from('calendars')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('provider', 'JIRA')
-      .single();
-
-    if (!calendar) {
-      console.error(`[${this.jobName.toUpperCase()}] No Jira calendar found for user ${userId}`);
       return;
     }
 
