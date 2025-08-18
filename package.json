@@ -8,8 +8,10 @@
     "make:instructions": "node src/image_prompt_instructions/generate-instructions.js",
     "start:cron": "ts-node cron-job/jiraJob.ts",
     "test:jobs": "ts-node src/testRunner.ts",
+    "test:integration": "ts-node --files src/test_integration.ts",
     "social-media": "ts-node --files src/socialMediaEntry.ts",
     "google-sem": "ts-node --files src/google_sem_workflow.ts",
+    "integrated-csv": "ts-node --files src/integrated_csv_workflow.ts",
     "migrate": "echo 'Run the SQL migration in your Supabase dashboard: supabase/migrations/20240315000000_test_tables.sql'",
     "setup": "chmod +x setup-linux.sh && ./setup-linux.sh",
     "start:jobs": "chmod +x start-jobs.sh && ./start-jobs.sh"

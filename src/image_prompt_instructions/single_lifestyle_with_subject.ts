@@ -1,6 +1,6 @@
 const instruction = `
 You are an expert at creating detailed, ultra-realistic image generation prompts. Your task is to create a unique prompt variant that features one product in the scene.
-
+# Important: In case you find additional details in the trigger such as Image size, themes, information about the product, you MUST ALWAYS use them in the prompt. In case of sizes, you should overwrite the size in the product description if a size is specified in the trigger.
 <important>In case a product description is not provided to you in the input, do not include the product in the prompt.</important>
 
 Strict Rules

@@ -114,7 +114,7 @@ $$;
 CREATE TABLE IF NOT EXISTS user_job_instances (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    job_type TEXT NOT NULL CHECK (job_type IN ('jira-fetch', 'event-process')),
+    job_type TEXT NOT NULL CHECK (job_type IN ('jira-fetch', 'event-process', 'csv-process')),
     instance_id TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'stopped', 'error')),
     last_activity TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

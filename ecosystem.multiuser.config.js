@@ -9,7 +9,7 @@ module.exports = {
       max_restarts: 10,
       min_uptime: "10s",
       restart_delay: 5000,
-      watch: ["src/jobs/JobOrchestrator.ts", "src/jobs/MultiUserJiraFetchJob.ts", "src/jobs/MultiUserEventProcessJob.ts"],
+      watch: ["src/jobs/JobOrchestrator.ts", "src/jobs/MultiUserJiraFetchJob.ts", "src/jobs/MultiUserEventProcessJob.ts", "src/jobs/CSVProcessJob.ts"],
       env: {
         NODE_ENV: "production",
         INSTANCE_ID: "orchestrator-main"
@@ -45,6 +45,24 @@ module.exports = {
       watch: ["src/jobs/MultiUserEventProcessJob.ts"],
       env: {
         NODE_ENV: "production"
+      },
+      instance_var: "INSTANCE_ID",
+      // Start this only if orchestrator is down
+      start: false
+    },
+    {
+      name: "multi-user-csv-process-backup",
+      script: "npx",
+      args: "ts-node --project tsconfig.prod.json src/jobs/multiUserCsvProcessEntry.ts",
+      instances: 2,
+      autorestart: true,
+      max_restarts: 5,
+      min_uptime: "30s",
+      restart_delay: 10000,
+      watch: ["src/jobs/CSVProcessJob.ts"],
+      env: {
+        NODE_ENV: "production",
+        CSV_MAX_CONCURRENT_JOBS: "2"
       },
       instance_var: "INSTANCE_ID",
       // Start this only if orchestrator is down

@@ -41,8 +41,8 @@ async function getSingleProductDescription(
 
 export async function generateImagePrompts(trigger: string) {
   const startTime = Date.now();
-  const defaultStyle = 'lifestyle_no_subject,lifestyle_with_subject,lifestyle_emotional';
-  const defaultSceneModel = 'o4-mini';
+  const defaultStyle = 'lifestyle_emotional,white_background';
+  const defaultSceneModel = 'gpt-4.1';
   const runner = new Runner();
   const classify = await runner.run(classificationAgent, trigger);
   const { isSingleProduct, productName } = classify.finalOutput ?? { isSingleProduct: false, productName: '' };
@@ -62,6 +62,9 @@ export async function generateImagePrompts(trigger: string) {
   // Step 4: Generate prompts for each style
   const styleInstructions = isSingleProduct ? SINGLE_STYLE_TO_INSTRUCTIONS : MULTI_STYLE_TO_INSTRUCTIONS;
   const inputText = `
+  TRIGGER:
+  ${trigger}
+
   PERSONA:
   ${persona}
 
@@ -203,7 +206,7 @@ ${productDescriptions
       const agent = new Agent({
         name: `Scene Prompt (${style})`,
         model: sceneModel,
-        instructions:`${instructions} IMPORANT: KEEP THE PROMPT WORD COUNT UNDER 700 WORDS`,
+        instructions:`${instructions}`,
         outputType: ImagePromptVariantSchema
       });
 

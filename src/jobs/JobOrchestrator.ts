@@ -1,13 +1,14 @@
 import { BaseJob } from './BaseJob'
 import { MultiUserJiraFetchJob } from './MultiUserJiraFetchJob'
 import { MultiUserEventProcessJob } from './MultiUserEventProcessJob'
+import { CSVProcessJob } from './CSVProcessJob'
 import { UserCredentials, JobInstance } from '../../supabase/types'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
 interface ActiveJob {
   job: BaseJob
   userId?: string
-  jobType: 'jira-fetch' | 'event-process'
+  jobType: 'jira-fetch' | 'event-process' | 'csv-process'
   instanceId: string
   startTime: Date
 }
@@ -104,9 +105,58 @@ export class JobOrchestrator {
     // Start global event process jobs (2 instances for parallel processing)
     await this.startJob('global-event-process-1', 'event-process', undefined)
     await this.startJob('global-event-process-2', 'event-process', undefined)
+    
+    // Start CSV processing jobs
+    await this.startCSVJobs()
   }
 
-  private async startJob(jobKey: string, jobType: 'jira-fetch' | 'event-process', userId?: string): Promise<void> {
+  private async startCSVJobs(): Promise<void> {
+    console.log('[ORCHESTRATOR] Starting CSV processing jobs...');
+
+    try {
+      // Start a global CSV processing job that handles all users and batches
+      await this.startJob('global-csv-process', 'csv-process', undefined, undefined)
+
+      // Get active CSV batches that need processing
+      const activeBatches = await this.getActiveCsvBatches()
+      
+      console.log(`[ORCHESTRATOR] Found ${activeBatches.length} active CSV batches`);
+
+      // Start dedicated workers for high-priority or large batches
+      for (const batch of activeBatches) {
+        // Only start dedicated workers for batches with many rows or specific requirements
+        if (batch.total_rows > 20) {
+          const jobKey = `csv-batch-${batch.id}`
+          await this.startJob(jobKey, 'csv-process', batch.user_id, batch.id)
+        }
+      }
+    } catch (error) {
+      console.error('[ORCHESTRATOR] Error starting CSV jobs:', error);
+    }
+  }
+
+  private async getActiveCsvBatches(): Promise<any[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('csv_batches')
+        .select('id, user_id, total_rows, status')
+        .in('status', ['queued', 'processing'])
+        .order('created_at', { ascending: true })
+        .limit(10) // Limit to prevent too many dedicated workers
+
+      if (error) {
+        console.error('[ORCHESTRATOR] Error fetching active CSV batches:', error);
+        return []
+      }
+
+      return data || []
+    } catch (error) {
+      console.error('[ORCHESTRATOR] Error in getActiveCsvBatches:', error);
+      return []
+    }
+  }
+
+  private async startJob(jobKey: string, jobType: 'jira-fetch' | 'event-process' | 'csv-process', userId?: string, batchId?: string): Promise<void> {
     if (this.activeJobs.has(jobKey)) {
       console.log(`[ORCHESTRATOR] Job ${jobKey} is already running`);
       return;
@@ -123,6 +173,9 @@ export class JobOrchestrator {
           break;
         case 'event-process':
           job = new MultiUserEventProcessJob(userId);
+          break;
+        case 'csv-process':
+          job = new CSVProcessJob(userId, batchId);
           break;
         default:
           throw new Error(`Unknown job type: ${jobType}`);
