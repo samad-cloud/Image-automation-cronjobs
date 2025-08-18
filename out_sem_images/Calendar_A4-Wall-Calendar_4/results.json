@@ -1,0 +1,14 @@
+{
+  "prompts": {
+    "lifestyle_prompt": "A bright, stylish home office wall with an A4 Wall Calendar hanging flat, open to a vibrant July spread. The top page displays a sunlit family holiday photo, the bottom grid shows a date circled in black ink with a handwritten note “Summer BBQ.” A hand holding a pen is captured mid-action circling the date. Warm natural light from a nearby window casts soft shadows on the high-quality, thick paper stock. Shot at a slight left angle with a 50mm lens and shallow depth of field to emphasize the calendar’s vibrant photo reproduction and easy-to-read grid. Size: A4 Wall Calendar",
+    "white_bg_prompt": "Studio shot of an A4 Wall Calendar open to July on a PURE WHITE background (#FFFFFF). Soft, even top-down lighting highlights the vibrant photo at the top and the clear, easy-to-read date grid below. Subtle shadows beneath the calendar add depth. The camera is positioned directly in front to capture the paper’s texture and true-to-life color reproduction, with no additional props or clutter. Size: A4 Wall Calendar"
+  },
+  "supabase_urls": {
+    "lifestyle": "https://nkjihejhyrquyegmqimi.supabase.co/storage/v1/object/public/google_sem/Calendar_A4-Wall-Calendar_4_lifestyle.png",
+    "white_bg": "https://nkjihejhyrquyegmqimi.supabase.co/storage/v1/object/public/google_sem/Calendar_A4-Wall-Calendar_4_white_bg.png"
+  },
+  "local_paths": {
+    "lifestyle": "out_sem_images\\Calendar_A4-Wall-Calendar_4\\lifestyle.png",
+    "white_bg": "out_sem_images\\Calendar_A4-Wall-Calendar_4\\white_bg.png"
+  }
+}

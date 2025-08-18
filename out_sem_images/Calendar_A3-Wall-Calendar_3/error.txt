@@ -1,0 +1,11 @@
+Error: 400 Unsupported parameter: 'temperature' is not supported with this model.
+    at Function.generate (file:///C:/Users/Admin3k/Documents/CustomImageGEN/openai-agents-ts/node_modules/openai/src/core/error.ts:72:14)
+    at OpenAI.makeStatusError (file:///C:/Users/Admin3k/Documents/CustomImageGEN/openai-agents-ts/node_modules/openai/src/client.ts:438:28)
+    at OpenAI.makeRequest (file:///C:/Users/Admin3k/Documents/CustomImageGEN/openai-agents-ts/node_modules/openai/src/client.ts:661:24)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async OpenAIResponsesModel.#fetchResponse (file:///C:/Users/Admin3k/Documents/CustomImageGEN/openai-agents-ts/node_modules/@openai/agents-openai/src/openaiResponsesModel.ts:873:22)
+    at async file:///C:/Users/Admin3k/Documents/CustomImageGEN/openai-agents-ts/node_modules/@openai/agents-openai/src/openaiResponsesModel.ts:894:24
+    at async file:///C:/Users/Admin3k/Documents/CustomImageGEN/openai-agents-ts/node_modules/@openai/agents-core/src/tracing/createSpans.ts:41:16
+    at async OpenAIResponsesModel.getResponse (file:///C:/Users/Admin3k/Documents/CustomImageGEN/openai-agents-ts/node_modules/@openai/agents-openai/src/openaiResponsesModel.ts:893:22)
+    at async file:///C:/Users/Admin3k/Documents/CustomImageGEN/openai-agents-ts/node_modules/@openai/agents-core/src/run.ts:377:39
+    at async file:///C:/Users/Admin3k/Documents/CustomImageGEN/openai-agents-ts/node_modules/@openai/agents-core/src/tracing/context.ts:60:20

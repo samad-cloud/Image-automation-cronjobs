@@ -8,6 +8,8 @@
     "make:instructions": "node src/image_prompt_instructions/generate-instructions.js",
     "start:cron": "ts-node cron-job/jiraJob.ts",
     "test:jobs": "ts-node src/testRunner.ts",
+    "social-media": "ts-node --files src/socialMediaEntry.ts",
+    "google-sem": "ts-node --files src/google_sem_workflow.ts",
     "migrate": "echo 'Run the SQL migration in your Supabase dashboard: supabase/migrations/20240315000000_test_tables.sql'",
     "setup": "chmod +x setup-linux.sh && ./setup-linux.sh",
     "start:jobs": "chmod +x start-jobs.sh && ./start-jobs.sh"
@@ -22,6 +24,7 @@
     "@openai/agents": "^0.0.14",
     "@supabase/supabase-js": "^2.53.0",
     "axios": "^1.11.0",
+    "csv-parse": "^6.1.0",
     "dotenv": "^17.2.1",
     "node-cron": "^4.2.1",
     "openai": "^5.12.0",
@@ -29,6 +32,7 @@
     "zod": "^3.25.67"
   },
   "devDependencies": {
+    "@types/csv-parse": "^1.1.12",
     "@types/node": "^24.2.0",
     "@types/prompt-sync": "^4.2.3",
     "ts-node": "^10.9.2",

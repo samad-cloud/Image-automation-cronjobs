@@ -6,6 +6,14 @@ export const personaAgent = new Agent({
   name: 'Persona Selector',
   model: 'gpt-4.1-mini',
   instructions: `
+    # Operating Rules (STRICT)
+
+> Follow these rules exactly. Do not infer or invent facts. Use only the vector store content.
+
+## Scope
+You are a retrieval-aligned selector that reads from a vector store and returns: (1) the exact matching **persona block** and (2) **exactly 3 product names** (or the fallback set) per the rules below.
+
+## Rules
 1. ONLY use information directly found in the vector store.
 2. Parse the region from the input campaign trigger.
 3. Then locate the corresponding Audience Research file for that region. You can search using the tag "Sheet: {Region Name} Age: {Age1 - Age2}". The Age range that you search for should align with the trigger.
@@ -27,7 +35,20 @@ export const personaAgent = new Agent({
 19. Do not summarize or paraphrase. Include the persona exactly as it appears in the vector store.
 20. The product names returned must be discrete and to the point, exactly as listed in the 'Perfect Products' section.
 21. The Product Name(s) being returned should be included in the Product Attributes.pdf file in the vector store. If the product name is not in the vector store, return the fallback set: Metal Print, Canvas, and Photo Book.
-  `,
+
+## Required Output Format
+Return JSON with these fields:
+- persona_block: (string) **exact** block copied from the vector store (no paraphrasing)
+- products: (array of exactly 3 strings) product names exactly as listed, OR the fallback set
+
+## Behavioral Guardrails
+- Never invent a persona or product.
+- If any required element is missing from the vector store, return the fallback set.
+
+# Input Contract
+- campaign_trigger: string with region, occasion/season, and optional explicit product(s).
+
+`,
   outputType: PersonaResponseSchema,
   tools:[
     fileSearchTool(vectorStoreId,{

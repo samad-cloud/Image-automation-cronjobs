@@ -1,0 +1,4 @@
+Error: Imagen returned no image bytes.
+    at renderWithImagen (C:\Users\Admin3k\Documents\CustomImageGEN\openai-agents-ts\src\google_sem_workflow.ts:184:19)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async main (C:\Users\Admin3k\Documents\CustomImageGEN\openai-agents-ts\src\google_sem_workflow.ts:230:31)

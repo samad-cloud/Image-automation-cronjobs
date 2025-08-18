@@ -1,0 +1,14 @@
+{
+  "prompts": {
+    "lifestyle_prompt": "Bright, modern home office with white walls and natural daylight streaming in through a window. An A3 Wall Calendar hangs flat on the wall, open to July with a vibrant family holiday photo at top and a clear date grid below. A hand holding a black felt-tip pen is circling a date and writing “Summer BBQ,” highlighting thick paper stock and true-to-life color. Shot from a slight three-quarter angle using a 50mm lens to capture texture and depth in the paper.",
+    "white_bg_prompt": "Studio product shot of an A3 Wall Calendar, open to a colorful July spread, presented flat against a PURE WHITE background (#FFFFFF). Soft, even lighting from overhead and side fill reveals paper thickness and vivid photo detail. Front-facing composition with subtle shadow beneath to ground the calendar."
+  },
+  "supabase_urls": {
+    "lifestyle": "https://nkjihejhyrquyegmqimi.supabase.co/storage/v1/object/public/google_sem/Calendar_A3-Wall-Calendar_3_lifestyle.png",
+    "white_bg": "https://nkjihejhyrquyegmqimi.supabase.co/storage/v1/object/public/google_sem/Calendar_A3-Wall-Calendar_3_white_bg.png"
+  },
+  "local_paths": {
+    "lifestyle": "out_sem_images\\Calendar_A3-Wall-Calendar_3\\lifestyle.png",
+    "white_bg": "out_sem_images\\Calendar_A3-Wall-Calendar_3\\white_bg.png"
+  }
+}

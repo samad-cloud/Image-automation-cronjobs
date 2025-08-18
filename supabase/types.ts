@@ -23,6 +23,55 @@ export interface TagData {
   model: 'gpt-image-1' | 'imagen-4.0-ultra'
 }
 
+// Multi-user job types
+export interface CalendarEventRow {
+  id: string
+  user_id: string
+  summary: string
+  description?: string
+  styles: string[]
+  number_of_variations: number
+  trigger_start: string
+  trigger_end: string
+}
+
+export interface UserCredentials {
+  user_id: string
+  jira_config: {
+    domain: string
+    username: string
+    apiKey: string
+    projectName: string
+    issueType: string
+  }
+  last_synced?: string
+}
+
+export interface GenerationRequest {
+  source: 'calendar' | 'manual' | 'api'
+  user_id: string
+  org_id?: string
+  calendar_event_id?: string
+  manual_trigger?: string
+  manual_prompt?: string
+  manual_styles?: string[]
+  manual_variations?: number
+  trigger: string
+  styles: string[]
+  number_of_variations: number
+}
+
+export interface JobInstance {
+  id: string
+  user_id: string
+  job_type: 'jira-fetch' | 'event-process'
+  instance_id: string
+  status: 'running' | 'stopped' | 'error'
+  last_activity: string
+  error_message?: string
+  created_at: string
+}
+
 export interface Database {
   public: {
     Tables: {
