@@ -25,7 +25,7 @@ Description: High-quality canvas print perfect for home decoration, featuring vi
     console.log(`✅ Direct test completed successfully!`);
     console.log(`   Generated ${directResult.length} prompt variants`);
     directResult.forEach((prompt, index) => {
-      console.log(`   ${index + 1}. ${prompt.style}: ${prompt.variant?.scene?.substring(0, 80)}...`);
+      console.log(`   ${index + 1}. ${prompt.style}: ${(prompt.variant as any)?.scene?.substring(0, 80) || 'No scene'}...`);
     });
 
     // Test 2: Single row processing test
@@ -69,7 +69,7 @@ Description: Professional quality ${scenario.productType} with excellent durabil
       
       // Show first variant as example
       if (scenarioResult.length > 0) {
-        console.log(`   Example (${scenarioResult[0].style}): ${scenarioResult[0].variant?.scene?.substring(0, 60)}...`);
+        console.log(`   Example (${scenarioResult[0].style}): ${(scenarioResult[0].variant as any)?.scene?.substring(0, 60) || 'No scene'}...`);
       }
     }
 

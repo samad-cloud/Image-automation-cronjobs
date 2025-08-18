@@ -44,7 +44,7 @@ export class MultiUserJiraFetchJob extends BaseJob {
     console.log(`[${this.jobName.toUpperCase()}] Fetching all users with active Jira integrations...`);
     
     const { data: users, error } = await this.supabase
-      .rpc('get_active_jira_users')
+      .rpc('get_active_jira_users') as { data: any[] | null, error: any }
 
     if (error) {
       console.error(`[${this.jobName.toUpperCase()}] Error fetching active Jira users:`, error);
@@ -62,7 +62,7 @@ export class MultiUserJiraFetchJob extends BaseJob {
     const batchSize = 3; // Process 3 users at a time to avoid API rate limits
     for (let i = 0; i < users.length; i += batchSize) {
       const batch = users.slice(i, i + batchSize);
-      const promises = batch.map(user => 
+      const promises = batch.map((user: any) => 
         this.processSingleUserSafe(user.user_id, {
           user_id: user.user_id,
           jira_config: user.jira_config as any,

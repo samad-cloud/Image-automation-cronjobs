@@ -222,10 +222,10 @@ export class JobOrchestrator {
 
   private async cleanupStaleJobs(): Promise<void> {
     try {
-      const cleaned = await this.supabase
+      const { data: cleaned } = await this.supabase
         .rpc('cleanup_stale_job_instances', {
           p_timeout_minutes: 30
-        })
+        }) as { data: number | null }
 
       if (cleaned && cleaned > 0) {
         console.log(`[ORCHESTRATOR] Cleaned up ${cleaned} stale job instances`);
@@ -238,14 +238,14 @@ export class JobOrchestrator {
   private async getActiveUsers(): Promise<UserCredentials[]> {
     try {
       const { data: users, error } = await this.supabase
-        .rpc('get_active_jira_users')
+        .rpc('get_active_jira_users') as { data: any[] | null, error: any }
 
       if (error) {
         console.error('[ORCHESTRATOR] Error fetching active users:', error);
         return [];
       }
 
-      return users?.map(user => ({
+      return users?.map((user: any) => ({
         user_id: user.user_id,
         jira_config: user.jira_config as any,
         last_synced: user.last_synced

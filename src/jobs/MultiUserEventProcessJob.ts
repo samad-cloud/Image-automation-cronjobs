@@ -77,7 +77,7 @@ export class MultiUserEventProcessJob extends BaseJob {
         p_worker_id: this.instanceId,
         p_timeout_minutes: 15,
         p_user_id: this.userId || null // Support both single-user and multi-user modes
-      })
+      }) as { data: CalendarEventRow[] | null, error: any }
 
     if (error) {
       console.error(`[${this.jobName.toUpperCase()}] Error claiming event:`, error);

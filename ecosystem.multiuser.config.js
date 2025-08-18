@@ -3,7 +3,7 @@ module.exports = {
     {
       name: "job-orchestrator",
       script: "npx",
-      args: "ts-node src/jobs/orchestratorEntry.ts",
+      args: "ts-node --project tsconfig.prod.json src/jobs/orchestratorEntry.ts",
       instances: 1,
       autorestart: true,
       max_restarts: 10,
@@ -19,7 +19,7 @@ module.exports = {
     {
       name: "multi-user-jira-fetch-backup",
       script: "npx",
-      args: "ts-node src/jobs/multiUserJiraFetchEntry.ts",
+      args: "ts-node --project tsconfig.prod.json src/jobs/multiUserJiraFetchEntry.ts",
       instances: 1,
       autorestart: true,
       max_restarts: 5,
@@ -36,7 +36,7 @@ module.exports = {
     {
       name: "multi-user-event-process-backup",
       script: "npx",
-      args: "ts-node src/jobs/multiUserEventProcessEntry.ts",
+      args: "ts-node --project tsconfig.prod.json src/jobs/multiUserEventProcessEntry.ts",
       instances: 2,
       autorestart: true,
       max_restarts: 5,
