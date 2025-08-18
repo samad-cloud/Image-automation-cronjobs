@@ -9,6 +9,8 @@ export class UniversalImageGenerator {
   private supabase: SupabaseClient
   private imageGenerator: ImageGenerator
   private storageService: StorageService
+  private currentPersona?: string
+  private currentProducts?: any[]
 
   constructor() {
     this.supabase = createClient(
@@ -120,16 +122,32 @@ export class UniversalImageGenerator {
       }
     }
 
-    return await generateImagePrompts(request.trigger)
+    // Convert user styles to agent workflow format if needed
+    const convertedStyles = request.styles?.map(style => this.convertStyleToAgentFormat(style));
+    
+    const workflowResult = await generateImagePrompts(request.trigger, convertedStyles)
+    
+    // Store persona and products for later use in image generation
+    this.currentPersona = workflowResult.persona;
+    this.currentProducts = workflowResult.products;
+    
+    return workflowResult.prompts // Return just the prompts array
   }
 
   private async generateFromManualRequest(request: GenerationRequest): Promise<any[]> {
+    // Convert user styles to agent workflow format if needed
+    const convertedStyles = request.styles?.map(style => this.convertStyleToAgentFormat(style));
+    
     // For manual requests, use the provided trigger and preferences
-    const prompts = await generateImagePrompts(request.trigger)
+    const workflowResult = await generateImagePrompts(request.trigger, convertedStyles)
+    
+    // Store persona and products for later use in image generation
+    this.currentPersona = workflowResult.persona;
+    this.currentProducts = workflowResult.products;
     
     // Filter prompts based on user's style preferences if provided
     if (request.styles && request.styles.length > 0) {
-      const filteredPrompts = prompts.filter(prompt => 
+      const filteredPrompts = workflowResult.prompts.filter(prompt => 
         request.styles!.some((style: string) => this.isStyleMatch(prompt.style, style))
       )
       
@@ -138,7 +156,21 @@ export class UniversalImageGenerator {
       }
     }
     
-    return prompts
+    return workflowResult.prompts
+  }
+
+  private convertStyleToAgentFormat(frontendStyle: string): string {
+    // Convert frontend style names to agent workflow format
+    const styleConversionMap: Record<string, string> = {
+      'Lifestyle no subject': 'lifestyle_no_subject',
+      'Lifestyle + Subject': 'lifestyle_with_subject', 
+      'Emotionally driven': 'lifestyle_emotional',
+      'Studio Style': 'studio',
+      'Close-up shot': 'closeup',
+      'White background': 'white_background'
+    }
+
+    return styleConversionMap[frontendStyle] || frontendStyle.toLowerCase().replace(/\s+/g, '_');
   }
 
   private isStyleMatch(promptStyle: string, userStyle: string): boolean {
@@ -213,6 +245,13 @@ export class UniversalImageGenerator {
               model_name: 'gpt-image-1',
               generation_source: request.source,
               generation_metadata: metadata,
+              persona: this.currentPersona || null, // Store persona from agent workflow
+              products: this.currentProducts || null, // Store products from agent workflow
+              prompt_json: {
+                full_prompt: prompt.variant,
+                style: prompt.style,
+                generation_metadata: metadata
+              }, // Store complete prompt data
               manual_request_data: request.source === 'manual' ? {
                 trigger: request.manual_trigger,
                 prompt: request.manual_prompt,

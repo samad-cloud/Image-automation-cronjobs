@@ -36,9 +36,10 @@ async function getSingleProductDescription(
   }
 }
 
-export async function generateImagePrompts(trigger: string) {
+export async function generateImagePrompts(trigger: string, userStyles?: string[]) {
   console.log('[AGENT-WORKFLOW] Starting image prompt generation...');
   console.log('[AGENT-WORKFLOW] Trigger:', trigger);
+  console.log('[AGENT-WORKFLOW] User styles:', userStyles);
   
   const startTime = Date.now();
   const defaultStyle = 'lifestyle_no_subject,lifestyle_with_subject,lifestyle_emotional';
@@ -100,8 +101,9 @@ export async function generateImagePrompts(trigger: string) {
   console.log('[AGENT-WORKFLOW] Input text prepared for prompt generation');
 
   const generatedPrompts: GeneratedPromptsResponse[] = [];
-  const styles = defaultStyle.split(',');
+  const styles = userStyles && userStyles.length > 0 ? userStyles : defaultStyle.split(',');
   console.log('[AGENT-WORKFLOW] Styles to process:', styles);
+  console.log('[AGENT-WORKFLOW] Using user styles:', !!userStyles && userStyles.length > 0);
   
   for (const style of styles) {
     console.log(`[AGENT-WORKFLOW] Processing style: ${style}`);
@@ -135,5 +137,15 @@ export async function generateImagePrompts(trigger: string) {
   console.log(`[AGENT-WORKFLOW] Total time taken: ${totalTime.toFixed(2)} seconds`);
   console.log(`[AGENT-WORKFLOW] Generated ${generatedPrompts.length} prompts successfully`);
 
-  return generatedPrompts;
+  return {
+    prompts: generatedPrompts,
+    persona: persona,
+    products: productDescriptions.filter(desc => desc?.found),
+    metadata: {
+      isSingleProduct,
+      productName,
+      totalTime,
+      userStylesUsed: !!userStyles && userStyles.length > 0
+    }
+  };
 } 

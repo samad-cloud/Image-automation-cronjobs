@@ -119,11 +119,11 @@ export class MultiUserEventProcessJob extends BaseJob {
     
     // Step 2: Generate prompts based on user's style preferences
     console.log(`[${this.jobName.toUpperCase()}] Generating prompts with user styles: ${request.styles.join(', ')}`);
-    const prompts = await this.generatePromptsWithUserStyles(request)
+    const promptResult = await this.generatePromptsWithUserStyles(request)
     
     // Step 3: Generate and store images
-    console.log(`[${this.jobName.toUpperCase()}] Processing ${prompts.length} prompts for image generation...`);
-    const images = await this.processImageGeneration(generation.id, prompts, request)
+    console.log(`[${this.jobName.toUpperCase()}] Processing ${promptResult.prompts.length} prompts for image generation...`);
+    const images = await this.processImageGeneration(generation.id, promptResult, request)
     
     // Step 4: Create bridge record for calendar-driven generation
     if (request.source === 'calendar' && request.calendar_event_id) {
@@ -167,7 +167,7 @@ export class MultiUserEventProcessJob extends BaseJob {
     return generation
   }
 
-  private async generatePromptsWithUserStyles(request: GenerationRequest): Promise<any[]> {
+  private async generatePromptsWithUserStyles(request: GenerationRequest): Promise<{ prompts: any[], persona: string, products: any[] }> {
     console.log(`[${this.jobName.toUpperCase()}] Generating prompts for: "${request.trigger}"`);
     console.log(`[${this.jobName.toUpperCase()}] User styles: ${JSON.stringify(request.styles)}`);
     
@@ -177,11 +177,16 @@ export class MultiUserEventProcessJob extends BaseJob {
       console.log(`[${this.jobName.toUpperCase()}] Converted styles: ${JSON.stringify(convertedStyles)}`);
       
       // Use existing prompt generation with user's style preferences
-      const basePrompts = await generateImagePrompts(request.trigger)
-      console.log(`[${this.jobName.toUpperCase()}] Base prompts generated: ${basePrompts.length}`);
+      const workflowResult = await generateImagePrompts(request.trigger, convertedStyles)
+      console.log(`[${this.jobName.toUpperCase()}] Agent workflow completed:`, {
+        prompts: workflowResult.prompts.length,
+        persona: !!workflowResult.persona,
+        products: workflowResult.products.length,
+        userStylesUsed: workflowResult.metadata.userStylesUsed
+      });
       
       // Filter prompts based on converted user style preferences
-      const filteredPrompts = basePrompts.filter(prompt => 
+      const filteredPrompts = workflowResult.prompts.filter(prompt => 
         convertedStyles.some(convertedStyle => 
           prompt.style === convertedStyle || this.isStyleMatch(prompt.style, convertedStyle)
         )
@@ -202,7 +207,11 @@ export class MultiUserEventProcessJob extends BaseJob {
             }
           })
         }
-        return customPrompts
+        return {
+          prompts: customPrompts,
+          persona: workflowResult.persona || 'Default persona for custom prompts',
+          products: workflowResult.products || []
+        }
       }
 
       // Ensure we have enough prompt variations for the requested number of variations
@@ -212,7 +221,11 @@ export class MultiUserEventProcessJob extends BaseJob {
       }
 
       console.log(`[${this.jobName.toUpperCase()}] Generated ${expandedPrompts.length} prompt variants`);
-      return expandedPrompts.slice(0, request.number_of_variations * filteredPrompts.length)
+      return {
+        prompts: expandedPrompts.slice(0, request.number_of_variations * filteredPrompts.length),
+        persona: workflowResult.persona || 'Generated persona from agent workflow',
+        products: workflowResult.products || []
+      }
     } catch (error) {
       console.error(`[${this.jobName.toUpperCase()}] Error generating prompts:`, error);
       throw error;
@@ -254,12 +267,15 @@ export class MultiUserEventProcessJob extends BaseJob {
 
   private async processImageGeneration(
     generationId: string, 
-    prompts: any[], 
+    promptResult: { prompts: any[], persona: string, products: any[] }, 
     request: GenerationRequest
   ): Promise<any[]> {
     const allImages = []
+    const { prompts, persona, products } = promptResult;
 
     console.log(`[${this.jobName.toUpperCase()}] Starting image generation for ${prompts.length} prompts...`);
+    console.log(`[${this.jobName.toUpperCase()}] Persona: ${persona}`);
+    console.log(`[${this.jobName.toUpperCase()}] Products: ${products.map(p => p.product_name).join(', ')}`);
 
     for (const [promptIndex, prompt] of prompts.entries()) {
       if (this.isErrorPrompt(prompt)) {
@@ -306,6 +322,13 @@ export class MultiUserEventProcessJob extends BaseJob {
               model_name: 'gpt-image-1',
               generation_source: request.source,
               generation_metadata: metadata,
+              persona: persona, // Store persona from agent workflow
+              products: products, // Store products from agent workflow
+              prompt_json: {
+                full_prompt: prompt.variant,
+                style: prompt.style,
+                generation_metadata: metadata
+              }, // Store complete prompt data
               width: 1024,
               height: 1024,
               format: 'png'

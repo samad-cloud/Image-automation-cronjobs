@@ -170,6 +170,15 @@ export class MultiUserJiraFetchJob extends BaseJob {
     // Use user's configured fetch limit (default 200, max 1000)
     const fetchLimit = calendar.fetch_limit || 200;
     console.log(`[${this.jobName.toUpperCase()}] Using fetch limit: ${fetchLimit} for user ${userId}`);
+
+    // Get user preferences for styles and variations
+    const { data: userPreferences } = await this.supabase
+      .from('user_preferences')
+      .select('trigger_timing, number_of_variations, styles')
+      .eq('user_id', userId)
+      .single();
+
+    console.log(`[${this.jobName.toUpperCase()}] User preferences for ${userId}:`, userPreferences);
     
     console.log(`[${this.jobName.toUpperCase()}] Making Jira API request for user ${userId}...`);
     const authHeader = `Basic ${Buffer.from(`${username}:${apiKey}`).toString('base64')}`;
@@ -220,12 +229,14 @@ export class MultiUserJiraFetchJob extends BaseJob {
           continue;
         }
 
-        const eventData = this.parseJiraEvent(issue, userId, calendar.id);
+        const eventData = this.parseJiraEvent(issue, userId, calendar.id, userPreferences);
         console.log(`[${this.jobName.toUpperCase()}] Parsed event data for ${issue.key}:`, {
           summary: eventData.summary,
           due_date: eventData.due_date,
           trigger_start: eventData.trigger_start,
-          trigger_end: eventData.trigger_end
+          trigger_end: eventData.trigger_end,
+          styles: eventData.styles,
+          number_of_variations: eventData.number_of_variations
         });
         
         await this.supabase
@@ -246,12 +257,17 @@ export class MultiUserJiraFetchJob extends BaseJob {
     }
   }
 
-  private parseJiraEvent(issue: any, userId: string, calendarId: string) {
+  private parseJiraEvent(issue: any, userId: string, calendarId: string, userPreferences?: any) {
     const summary = issue.fields.summary;
     const dueDate = issue.fields.duedate ? new Date(issue.fields.duedate) : null;
     
-    // Calculate trigger times (2 days before due date by default)
-    const { trigger_start, trigger_end } = this.calculateTriggerTimes(dueDate);
+    // Use user preferences or defaults
+    const triggerTiming = userPreferences?.trigger_timing || '2 days';
+    const numberOfVariations = userPreferences?.number_of_variations || 1;
+    const userStyles = userPreferences?.styles || ['Lifestyle + Subject'];
+    
+    // Calculate trigger times based on user preferences
+    const { trigger_start, trigger_end } = this.calculateTriggerTimes(dueDate, triggerTiming);
     
     // Filter out unwanted keywords from summary
     const filteredSummary = this.filterKeywords(summary);
@@ -269,17 +285,32 @@ export class MultiUserJiraFetchJob extends BaseJob {
       },
       status: 'pending' as const,
       color: 'amber', // Default color for Jira events
-      styles: ['Lifestyle + Subject'], // Default style
-      number_of_variations: 1, // Default variations
+      styles: userStyles, // Use user's preferred styles
+      number_of_variations: numberOfVariations, // Use user's preferred variations
       tags: []
     };
   }
 
-  private calculateTriggerTimes(dueDate: Date | null): { trigger_start: string | null, trigger_end: string | null } {
+  private calculateTriggerTimes(dueDate: Date | null, triggerTiming: string = '2 days'): { trigger_start: string | null, trigger_end: string | null } {
     if (!dueDate) return { trigger_start: null, trigger_end: null };
     
-    // Calculate trigger date (2 days before due date)
-    const triggerDate = new Date(dueDate.getTime() - (2 * 24 * 60 * 60 * 1000));
+    // Parse trigger timing (e.g., "2 days", "1 week", "3 days")
+    const match = triggerTiming.match(/(\d+)\s*(day|days|week|weeks)/i);
+    let daysBefore = 2; // Default
+    
+    if (match) {
+      const amount = parseInt(match[1]);
+      const unit = match[2].toLowerCase();
+      
+      if (unit.startsWith('week')) {
+        daysBefore = amount * 7;
+      } else {
+        daysBefore = amount;
+      }
+    }
+    
+    // Calculate trigger date
+    const triggerDate = new Date(dueDate.getTime() - (daysBefore * 24 * 60 * 60 * 1000));
     
     // Set trigger start to beginning of day (00:00:00 UTC)
     const triggerStart = new Date(triggerDate);
