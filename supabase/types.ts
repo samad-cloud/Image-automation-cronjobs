@@ -29,7 +29,7 @@ export interface CalendarEventRow {
   user_id: string
   summary: string
   description?: string
-  styles: string[]
+  styles: string[]  // This should be string[] (array) not JSONB
   number_of_variations: number
   trigger_start: string
   trigger_end: string

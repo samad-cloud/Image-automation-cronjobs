@@ -169,17 +169,25 @@ export class MultiUserEventProcessJob extends BaseJob {
 
   private async generatePromptsWithUserStyles(request: GenerationRequest): Promise<any[]> {
     console.log(`[${this.jobName.toUpperCase()}] Generating prompts for: "${request.trigger}"`);
+    console.log(`[${this.jobName.toUpperCase()}] User styles: ${JSON.stringify(request.styles)}`);
     
     try {
+      // Convert user styles to agent workflow format
+      const convertedStyles = request.styles.map(style => this.convertStyleToAgentFormat(style));
+      console.log(`[${this.jobName.toUpperCase()}] Converted styles: ${JSON.stringify(convertedStyles)}`);
+      
       // Use existing prompt generation with user's style preferences
       const basePrompts = await generateImagePrompts(request.trigger)
+      console.log(`[${this.jobName.toUpperCase()}] Base prompts generated: ${basePrompts.length}`);
       
-      // Filter prompts based on user's style preferences
+      // Filter prompts based on converted user style preferences
       const filteredPrompts = basePrompts.filter(prompt => 
-        request.styles.some(style => 
-          this.isStyleMatch(prompt.style, style)
+        convertedStyles.some(convertedStyle => 
+          prompt.style === convertedStyle || this.isStyleMatch(prompt.style, convertedStyle)
         )
       )
+      
+      console.log(`[${this.jobName.toUpperCase()}] Filtered prompts: ${filteredPrompts.length}`);
 
       // If no matches, ensure we have at least one prompt per user style
       if (filteredPrompts.length === 0) {
@@ -211,14 +219,31 @@ export class MultiUserEventProcessJob extends BaseJob {
     }
   }
 
+  private convertStyleToAgentFormat(frontendStyle: string): string {
+    // Convert frontend style names to agent workflow format
+    const styleConversionMap: Record<string, string> = {
+      'Lifestyle no subject': 'lifestyle_no_subject',
+      'Lifestyle + Subject': 'lifestyle_with_subject', 
+      'Emotionally driven': 'lifestyle_emotional',
+      'Studio Style': 'studio',
+      'Close-up shot': 'closeup',
+      'White background': 'white_background'
+    }
+
+    return styleConversionMap[frontendStyle] || frontendStyle.toLowerCase().replace(/\s+/g, '_');
+  }
+
   private isStyleMatch(promptStyle: string, userStyle: string): boolean {
+    // Direct match first
+    if (promptStyle === userStyle) return true;
+    
     const styleMap: Record<string, string[]> = {
-      'Lifestyle no subject': ['lifestyle', 'no subject', 'no people'],
-      'Lifestyle + Subject': ['lifestyle', 'with subject', 'lifestyle scene'],
-      'Emotionally driven': ['emotional', 'feeling', 'mood'],
+      'Lifestyle no subject': ['lifestyle', 'no subject', 'no people', 'lifestyle_no_subject'],
+      'Lifestyle + Subject': ['lifestyle', 'with subject', 'lifestyle scene', 'lifestyle_with_subject'],
+      'Emotionally driven': ['emotional', 'feeling', 'mood', 'lifestyle_emotional'],
       'Studio Style': ['studio', 'clean', 'professional'],
-      'Close-up shot': ['close-up', 'macro', 'detail'],
-      'White background': ['white background', 'studio', 'clean']
+      'Close-up shot': ['close-up', 'macro', 'detail', 'closeup'],
+      'White background': ['white background', 'studio', 'clean', 'white_background']
     }
 
     const keywords = styleMap[userStyle] || [userStyle.toLowerCase()]
