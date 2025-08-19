@@ -310,24 +310,74 @@ export class CSVProcessJob extends BaseJob {
         // Convert buffer to base64 for storage
         const imageBase64 = imageBuffers[0].toString('base64');
         
-        // Store image in generated_images table
+        // Store image in google_sem storage bucket
+        const filename = `csv_${jobId}_${style}_${i + 1}.png`;
+        const storagePath = `csv-generated/${this.userId || 'system'}/${filename}`;
+        
+        const { data: storageData, error: storageError } = await this.supabase.storage
+          .from('google_sem')
+          .upload(storagePath, imageBuffers[0], {
+            contentType: 'image/png',
+            upsert: false
+          });
+
+        if (storageError) {
+          console.error(`[${this.jobName.toUpperCase()}] Failed to upload image to storage:`, storageError);
+          await this.logMessage('ERROR', 'Failed to upload image to storage', {
+            error: storageError.message || JSON.stringify(storageError),
+            storagePath: storagePath,
+            style: style
+          }, 'storage_upload_error', undefined, jobId);
+          throw new Error(`Failed to upload image to storage: ${storageError.message || 'Unknown error'}`);
+        }
+
+        // Get public URL for the uploaded image
+        const { data: publicUrlData } = await this.supabase.storage
+          .from('google_sem')
+          .getPublicUrl(storagePath);
+
+        const storageUrl = publicUrlData.publicUrl;
+        
+        await this.logMessage('INFO', 'Image uploaded to storage successfully', {
+          storagePath: storagePath,
+          storageUrl: storageUrl,
+          style: style
+        }, 'storage_upload_success', undefined, jobId);
+        
+        // Store image in images table with correct column names
         const { data: imageRecord, error: imageError } = await this.supabase
-          .from('generated_images')
+          .from('images')
           .insert({
-            user_id: this.userId,
-            trigger: promptsResult.trigger || 'CSV processing',
-            prompt: prompt,
-            model: 'gpt-image-1',
-            image_data: imageBase64,
-            filename: `csv_${jobId}_${style}_${i + 1}.png`,
-            image_title: promptObj.variant?.Image_title || `${style} image`,
-            image_description: promptObj.variant?.Image_description || prompt.substring(0, 200),
+            storage_url: storageUrl,
+            title: promptObj.variant?.Image_title || `${style} image`,
+            description: promptObj.variant?.Image_description || prompt.substring(0, 200),
             tags: [style, 'csv-generated'],
-            metadata: {
+            style_type: style,
+            prompt_used: prompt,
+            model_name: 'gpt-image-1',
+            generation_source: 'api', // Since this is from CSV processing API
+            format: 'png',
+            generation_metadata: {
               csv_job_id: jobId,
               style: style,
               prompt_index: i,
-              generated_from: 'csv-processing'
+              generated_from: 'csv-processing',
+              user_id: this.userId,
+              trigger: promptsResult.trigger || 'CSV processing',
+              image_data: imageBase64, // Store base64 data in metadata for backup
+              filename: filename,
+              storage_path: storagePath,
+              storage_bucket: 'google_sem'
+            },
+            manual_request_data: {
+              batch_id: this.batchId,
+              worker_instance: this.instanceId,
+              processing_time: Date.now() - imageStartTime,
+              storage_upload: {
+                bucket: 'google_sem',
+                path: storagePath,
+                url: storageUrl
+              }
             }
           })
           .select('id')
@@ -335,7 +385,8 @@ export class CSVProcessJob extends BaseJob {
 
         if (imageError) {
           console.error(`[${this.jobName.toUpperCase()}] Failed to store image in database:`, imageError);
-          throw new Error(`Failed to store image: ${imageError.message}`);
+          const errorMessage = imageError.message || imageError.details || JSON.stringify(imageError);
+          throw new Error(`Failed to store image: ${errorMessage}`);
         }
 
         const imageId = imageRecord.id;
@@ -347,10 +398,28 @@ export class CSVProcessJob extends BaseJob {
           style: style,
           prompt: prompt,
           image_data: imageBase64,
+          storage_url: storageUrl,
+          storage_path: storagePath,
+          storage_bucket: 'google_sem',
           generator: 'gpt-image-1',
           generated_at: new Date().toISOString(),
           image_title: promptObj.variant?.Image_title || `${style} image`,
-          image_description: promptObj.variant?.Image_description || prompt.substring(0, 200)
+          image_description: promptObj.variant?.Image_description || prompt.substring(0, 200),
+          filename: filename,
+          metadata: {
+            csv_job_id: jobId,
+            style: style,
+            prompt_index: i,
+            generated_from: 'csv-processing',
+            user_id: this.userId,
+            trigger: promptsResult.trigger || 'CSV processing',
+            tags: [style, 'csv-generated'],
+            storage: {
+              bucket: 'google_sem',
+              path: storagePath,
+              url: storageUrl
+            }
+          }
         });
 
         const imageGenerationTime = Date.now() - imageStartTime;
@@ -361,7 +430,10 @@ export class CSVProcessJob extends BaseJob {
           imageId: imageId,
           promptIndex: i + 1,
           generationTimeMs: imageGenerationTime,
-          imageSize: imageBase64.length
+          imageSize: imageBase64.length,
+          storageUrl: storageUrl,
+          storagePath: storagePath,
+          storageBucket: 'google_sem'
         }, 'image_generation_success', undefined, jobId, imageGenerationTime);
 
       } catch (error) {
