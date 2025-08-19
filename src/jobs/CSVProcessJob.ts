@@ -231,12 +231,34 @@ export class CSVProcessJob extends BaseJob {
     const trigger = this.buildTriggerFromRow(rowData);
 
     // Generate image prompts using existing agentic workflow with hardcoded styles
-    const hardcodedStyles = ['lifestyle_emotional', 'single_white_background'];
+    // Call generateImagePrompts once for each style since it only generates one prompt per call
+    const hardcodedStyles = ['lifestyle_emotional', 'white_background'];
     console.log(`[${this.jobName.toUpperCase()}] Using hardcoded styles:`, hardcodedStyles);
     
-    const generatedPrompts = await generateImagePrompts(trigger, hardcodedStyles);
+    const allPrompts: any[] = [];
     
-    console.log(`[${this.jobName.toUpperCase()}] Generated ${generatedPrompts.prompts?.length || 0} prompts`);
+    for (const style of hardcodedStyles) {
+      console.log(`[${this.jobName.toUpperCase()}] Generating prompt for style: ${style}`);
+      try {
+        const stylePrompts = await generateImagePrompts(trigger, [style]);
+        console.log(`[${this.jobName.toUpperCase()}] Generated ${stylePrompts.prompts?.length || 0} prompts for ${style}`);
+        
+        if (stylePrompts.prompts && stylePrompts.prompts.length > 0) {
+          allPrompts.push(...stylePrompts.prompts);
+        }
+      } catch (error) {
+        console.error(`[${this.jobName.toUpperCase()}] Failed to generate prompt for style ${style}:`, error);
+        await this.logMessage('ERROR', 'Failed to generate prompt for style', {
+          style: style,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }, 'prompt_generation_error', undefined, job.id);
+      }
+    }
+    
+    const generatedPrompts = { prompts: allPrompts };
+    
+    console.log(`[${this.jobName.toUpperCase()}] Generated ${generatedPrompts.prompts?.length || 0} total prompts`);
+    console.log(`[${this.jobName.toUpperCase()}] Prompt details:`, generatedPrompts.prompts?.map((p: any) => ({ style: p.style, hasPrompt: !!p.variant?.prompt })));
 
     // Generate actual images from the prompts and store in database
     const { generatedImages, generatedImageIds } = await this.generateImagesFromPrompts(generatedPrompts, job.id);
@@ -265,9 +287,11 @@ export class CSVProcessJob extends BaseJob {
     }
 
     console.log(`[${this.jobName.toUpperCase()}] Starting image generation for ${promptsResult.prompts.length} prompts`);
+    console.log(`[${this.jobName.toUpperCase()}] Prompts breakdown:`, promptsResult.prompts.map((p: any) => ({ style: p.style, hasVariant: !!p.variant, hasPrompt: !!p.variant?.prompt })));
     
     await this.logMessage('INFO', 'Starting image generation', {
       promptCount: promptsResult.prompts.length,
+      promptsBreakdown: promptsResult.prompts.map((p: any) => ({ style: p.style, hasPrompt: !!p.variant?.prompt })),
       jobId: jobId
     }, 'image_generation_start', undefined, jobId);
 
@@ -277,10 +301,14 @@ export class CSVProcessJob extends BaseJob {
       const prompt = promptObj.variant?.prompt;
 
       if (!prompt) {
-        console.log(`[${this.jobName.toUpperCase()}] Skipping prompt ${i + 1}: No prompt text available`);
+        console.log(`[${this.jobName.toUpperCase()}] Skipping prompt ${i + 1}: No prompt text available for style ${style}`);
+        console.log(`[${this.jobName.toUpperCase()}] Prompt object:`, JSON.stringify(promptObj, null, 2));
         await this.logMessage('WARN', 'Skipping prompt generation - no prompt text', {
           promptIndex: i + 1,
-          style: style
+          style: style,
+          promptObj: promptObj,
+          hasVariant: !!promptObj.variant,
+          variantKeys: promptObj.variant ? Object.keys(promptObj.variant) : []
         }, 'prompt_skip', undefined, jobId);
         continue;
       }
@@ -461,7 +489,18 @@ export class CSVProcessJob extends BaseJob {
       }
     }
 
-    console.log(`[${this.jobName.toUpperCase()}] Image generation complete: ${images.filter(img => img.image_data).length}/${images.length} successful`);
+    const successfulImages = images.filter(img => img.image_data);
+    console.log(`[${this.jobName.toUpperCase()}] Image generation complete: ${successfulImages.length}/${images.length} successful`);
+    console.log(`[${this.jobName.toUpperCase()}] Generated styles:`, successfulImages.map(img => img.style));
+    
+    await this.logMessage('INFO', 'Image generation batch completed', {
+      totalPrompts: promptsResult.prompts.length,
+      successfulImages: successfulImages.length,
+      failedImages: images.length - successfulImages.length,
+      stylesGenerated: successfulImages.map(img => img.style),
+      imageIds: imageIds
+    }, 'image_generation_complete', undefined, jobId);
+    
     return { generatedImages: images, generatedImageIds: imageIds };
   }
 
