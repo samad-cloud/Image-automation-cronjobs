@@ -334,43 +334,7 @@ END;
 $$;
 
 -- Function to update worker heartbeat and statistics
-CREATE OR REPLACE FUNCTION update_csv_worker_heartbeat(
-    p_instance_id TEXT,
-    p_status TEXT DEFAULT 'processing',
-    p_current_job_count INTEGER DEFAULT NULL,
-    p_jobs_completed_delta INTEGER DEFAULT 0,
-    p_jobs_failed_delta INTEGER DEFAULT 0
-)
-RETURNS BOOLEAN
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    INSERT INTO csv_processing_workers (
-        instance_id, 
-        status, 
-        current_job_count,
-        last_heartbeat
-    ) VALUES (
-        p_instance_id, 
-        p_status, 
-        COALESCE(p_current_job_count, 0),
-        NOW()
-    )
-    ON CONFLICT (instance_id) 
-    DO UPDATE SET
-        status = p_status,
-        current_job_count = COALESCE(p_current_job_count, csv_processing_workers.current_job_count),
-        total_jobs_processed = csv_processing_workers.total_jobs_processed + p_jobs_completed_delta,
-        total_jobs_failed = csv_processing_workers.total_jobs_failed + p_jobs_failed_delta,
-        last_heartbeat = NOW(),
-        last_job_completed_at = CASE 
-            WHEN p_jobs_completed_delta > 0 THEN NOW() 
-            ELSE csv_processing_workers.last_job_completed_at 
-        END;
-    
-    RETURN TRUE;
-END;
-$$;
+
 
 -- Function to cleanup stale workers and jobs
 CREATE OR REPLACE FUNCTION cleanup_stale_csv_workers(
@@ -831,6 +795,7 @@ DROP FUNCTION IF EXISTS claim_next_csv_row_job(text, uuid, integer);
 DROP FUNCTION IF EXISTS update_csv_row_job_result(uuid, text, text, jsonb, jsonb, jsonb, numeric, text, jsonb);
 DROP FUNCTION IF EXISTS update_csv_row_job_result(uuid, text, text, jsonb, jsonb, jsonb, uuid[], numeric, text, jsonb);
 DROP FUNCTION IF EXISTS update_csv_worker_heartbeat(text, text, integer, integer, integer);
+DROP FUNCTION IF EXISTS update_csv_worker_heartbeat();
 DROP FUNCTION IF EXISTS get_csv_batch_progress(uuid);
 DROP FUNCTION IF EXISTS update_csv_batch_progress(uuid);
 DROP FUNCTION IF EXISTS cleanup_stale_csv_workers(integer);
@@ -913,37 +878,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Function to update worker heartbeat
-CREATE OR REPLACE FUNCTION update_csv_worker_heartbeat(
-    p_instance_id TEXT,
-    p_status TEXT DEFAULT 'processing',
-    p_current_job_count INTEGER DEFAULT 0,
-    p_jobs_completed_delta INTEGER DEFAULT 0,
-    p_jobs_failed_delta INTEGER DEFAULT 0
-) RETURNS VOID AS $$
-BEGIN
-    INSERT INTO csv_processing_workers (
-        instance_id,
-        status,
-        current_job_count,
-        jobs_completed,
-        jobs_failed,
-        last_heartbeat
-    ) VALUES (
-        p_instance_id,
-        p_status,
-        p_current_job_count,
-        p_jobs_completed_delta,
-        p_jobs_failed_delta,
-        NOW()
-    )
-    ON CONFLICT (instance_id) DO UPDATE SET
-        status = EXCLUDED.status,
-        current_job_count = EXCLUDED.current_job_count,
-        jobs_completed = csv_processing_workers.jobs_completed + EXCLUDED.jobs_completed,
-        jobs_failed = csv_processing_workers.jobs_failed + EXCLUDED.jobs_failed,
-        last_heartbeat = NOW();
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 
 -- Function to get batch progress
 CREATE OR REPLACE FUNCTION get_csv_batch_progress(p_batch_id UUID)

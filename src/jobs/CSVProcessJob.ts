@@ -17,18 +17,23 @@ export class CSVProcessJob extends BaseJob {
   private batchId?: string
   private maxConcurrentJobs: number
   private imageGenerator: ImageGenerator
+  private workerStartTime: Date
+  private totalJobsProcessed: number = 0
+  private totalJobsFailed: number = 0
+  private processingTimes: number[] = []
 
   constructor(userId?: string, batchId?: string, maxConcurrentJobs: number = 3) {
     super('csv-process', userId)
     this.batchId = batchId
     this.maxConcurrentJobs = maxConcurrentJobs
+    this.workerStartTime = new Date()
     
     // Initialize OpenAI image generator only
     try {
       this.imageGenerator = new ImageGenerator()
-      console.log(`[${this.jobName.toUpperCase()}] OpenAI ImageGenerator initialized successfully`)
+      this.logMessage('INFO', 'OpenAI ImageGenerator initialized successfully', null, 'initialization')
     } catch (error) {
-      console.error(`[${this.jobName.toUpperCase()}] Failed to initialize OpenAI ImageGenerator:`, error)
+      this.logMessage('FATAL', 'Failed to initialize OpenAI ImageGenerator', { error: error instanceof Error ? error.message : 'Unknown error' }, 'initialization')
       throw new Error(`CSV processing requires OpenAI ImageGenerator: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
@@ -37,6 +42,13 @@ export class CSVProcessJob extends BaseJob {
     console.log(`[${this.jobName.toUpperCase()}] Starting CSV processing execution loop...`);
     console.log(`[${this.jobName.toUpperCase()}] Batch ID: ${this.batchId || 'ALL'}, User ID: ${this.userId || 'ALL'}`);
     console.log(`[${this.jobName.toUpperCase()}] Max concurrent jobs: ${this.maxConcurrentJobs}`);
+    
+    await this.logMessage('INFO', 'CSV processing worker started', {
+      batchId: this.batchId,
+      userId: this.userId,
+      maxConcurrentJobs: this.maxConcurrentJobs,
+      instanceId: this.instanceId
+    }, 'worker_start');
     
     while (true) {
       try {
@@ -98,10 +110,16 @@ export class CSVProcessJob extends BaseJob {
 
     if (error) {
       console.error(`[${this.jobName.toUpperCase()}] Error checking for available jobs:`, error);
+      await this.logMessage('ERROR', 'Failed to check for available jobs', { error: error.message }, 'job_check');
       return false;
     }
 
-    return jobs && jobs.length > 0;
+    const hasJobs = jobs && jobs.length > 0;
+    if (!hasJobs) {
+      await this.logMessage('DEBUG', 'No jobs available for processing', null, 'job_check');
+    }
+
+    return hasJobs;
   }
 
   private async processNextJob(): Promise<void> {
@@ -116,6 +134,7 @@ export class CSVProcessJob extends BaseJob {
 
     if (error) {
       console.error(`[${this.jobName.toUpperCase()}] Error claiming job:`, error);
+      await this.logMessage('ERROR', 'Failed to claim next job', { error: error.message }, 'job_claim');
       throw error;
     }
 
@@ -126,23 +145,61 @@ export class CSVProcessJob extends BaseJob {
 
     const job = jobs[0]
     console.log(`[${this.jobName.toUpperCase()}] Processing job: ${job.id} (batch: ${job.batch_id}, row: ${job.row_number})`);
+    
+    await this.logMessage('INFO', 'Starting job processing', {
+      jobId: job.id,
+      batchId: job.batch_id,
+      rowNumber: job.row_number
+    }, 'job_start', job.batch_id, job.id);
 
+    const jobStartTime = Date.now();
+    
     try {
-      // Mark job as processing
+      // Mark job as processing and update worker status
       await this.updateJobStatus(job.id, 'processing')
+      await this.updateWorkerHeartbeat('processing', 1, 0, 0)
 
       // Process the row
       const result = await this.processRow(job)
 
+      // Calculate processing time
+      const processingTimeSeconds = (Date.now() - jobStartTime) / 1000;
+      this.processingTimes.push(processingTimeSeconds);
+      
+      // Keep only last 100 processing times for average calculation
+      if (this.processingTimes.length > 100) {
+        this.processingTimes = this.processingTimes.slice(-100);
+      }
+
       // Update job with results
       await this.updateJobStatus(job.id, 'completed', result)
 
-      console.log(`[${this.jobName.toUpperCase()}] Successfully completed job: ${job.id}`);
+      // Update worker stats (completed job)
+      await this.updateWorkerHeartbeat('idle', 0, 1, 0)
+
+      console.log(`[${this.jobName.toUpperCase()}] Successfully completed job: ${job.id} in ${processingTimeSeconds.toFixed(2)}s`);
+      
+      await this.logMessage('INFO', 'Job completed successfully', {
+        jobId: job.id,
+        processingTimeSeconds: processingTimeSeconds,
+        imagesGenerated: result.generated_images?.length || 0,
+        promptsGenerated: result.generated_prompts?.prompts?.length || 0
+      }, 'job_complete', job.batch_id, job.id, Math.round(processingTimeSeconds * 1000));
+      
     } catch (error) {
       console.error(`[${this.jobName.toUpperCase()}] Error processing job ${job.id}:`, error);
       
+      await this.logMessage('ERROR', 'Job processing failed', {
+        jobId: job.id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      }, 'job_error', job.batch_id, job.id);
+      
       // Update job with error
       await this.updateJobStatus(job.id, 'failed', null, error as Error)
+      
+      // Update worker stats (failed job)
+      await this.updateWorkerHeartbeat('error', 0, 0, 1)
     }
   }
 
@@ -208,6 +265,11 @@ export class CSVProcessJob extends BaseJob {
     }
 
     console.log(`[${this.jobName.toUpperCase()}] Starting image generation for ${promptsResult.prompts.length} prompts`);
+    
+    await this.logMessage('INFO', 'Starting image generation', {
+      promptCount: promptsResult.prompts.length,
+      jobId: jobId
+    }, 'image_generation_start', undefined, jobId);
 
     for (let i = 0; i < promptsResult.prompts.length; i++) {
       const promptObj = promptsResult.prompts[i];
@@ -216,14 +278,26 @@ export class CSVProcessJob extends BaseJob {
 
       if (!prompt) {
         console.log(`[${this.jobName.toUpperCase()}] Skipping prompt ${i + 1}: No prompt text available`);
+        await this.logMessage('WARN', 'Skipping prompt generation - no prompt text', {
+          promptIndex: i + 1,
+          style: style
+        }, 'prompt_skip', undefined, jobId);
         continue;
       }
 
       console.log(`[${this.jobName.toUpperCase()}] Generating image ${i + 1}/${promptsResult.prompts.length} (${style}): "${prompt.substring(0, 100)}..."`);
 
+      const imageStartTime = Date.now();
+      
       try {
         // Use OpenAI DALL-E for image generation only
         console.log(`[${this.jobName.toUpperCase()}] Generating image using OpenAI DALL-E (gpt-image-1)...`);
+        
+        await this.logMessage('INFO', 'Starting DALL-E image generation', {
+          style: style,
+          promptIndex: i + 1,
+          promptPreview: prompt.substring(0, 100)
+        }, 'dalle_generation_start', undefined, jobId);
         
         const imageBuffers = await this.imageGenerator.generateImages(prompt, 1);
         
@@ -279,10 +353,28 @@ export class CSVProcessJob extends BaseJob {
           image_description: promptObj.variant?.Image_description || prompt.substring(0, 200)
         });
 
+        const imageGenerationTime = Date.now() - imageStartTime;
         console.log(`[${this.jobName.toUpperCase()}] Successfully generated and stored image for style: ${style} with ID: ${imageId}`);
 
+        await this.logMessage('INFO', 'Image generated and stored successfully', {
+          style: style,
+          imageId: imageId,
+          promptIndex: i + 1,
+          generationTimeMs: imageGenerationTime,
+          imageSize: imageBase64.length
+        }, 'image_generation_success', undefined, jobId, imageGenerationTime);
+
       } catch (error) {
+        const imageGenerationTime = Date.now() - imageStartTime;
         console.error(`[${this.jobName.toUpperCase()}] Failed to generate image for style ${style}:`, error);
+        
+        await this.logMessage('ERROR', 'Image generation failed', {
+          style: style,
+          promptIndex: i + 1,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          generationTimeMs: imageGenerationTime,
+          stack: error instanceof Error ? error.stack : undefined
+        }, 'image_generation_error', undefined, jobId, imageGenerationTime);
         
         // Add error entry instead of failing the entire job
         images.push({
@@ -346,21 +438,101 @@ export class CSVProcessJob extends BaseJob {
     }
   }
 
+  // CSV Processing Logging
+  private async logMessage(
+    level: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' | 'FATAL',
+    message: string,
+    details?: any,
+    operation?: string,
+    batchId?: string,
+    rowJobId?: string,
+    durationMs?: number
+  ): Promise<void> {
+    try {
+      const logEntry = {
+        batch_id: batchId || this.batchId || null,
+        row_job_id: rowJobId || null,
+        worker_instance_id: this.instanceId,
+        log_level: level,
+        message: message,
+        details: details ? (typeof details === 'object' ? details : { data: details }) : null,
+        operation: operation || null,
+        duration_ms: durationMs || null,
+        created_at: new Date().toISOString()
+      };
+
+      const { error } = await this.supabase
+        .from('csv_processing_logs')
+        .insert(logEntry);
+
+      if (error) {
+        console.error(`[${this.jobName.toUpperCase()}] Failed to insert log:`, error);
+        // Don't throw - logging failures shouldn't stop processing
+      }
+    } catch (error) {
+      console.error(`[${this.jobName.toUpperCase()}] Error in logging:`, error);
+      // Don't throw - logging failures shouldn't stop processing
+    }
+  }
+
   // Update worker heartbeat to track this worker's activity
   private async updateWorkerHeartbeat(
-    status: 'idle' | 'processing' | 'stopped' = 'processing',
+    status: 'idle' | 'processing' | 'paused' | 'stopped' | 'error' = 'processing',
     currentJobCount: number = 0,
     jobsCompletedDelta: number = 0,
     jobsFailedDelta: number = 0
   ): Promise<void> {
     try {
-      await this.supabase.rpc('update_csv_worker_heartbeat', {
-        p_instance_id: this.instanceId,
-        p_status: status,
-        p_current_job_count: currentJobCount,
-        p_jobs_completed_delta: jobsCompletedDelta,
-        p_jobs_failed_delta: jobsFailedDelta
-      })
+      // Calculate average processing time
+      const averageProcessingTime = this.processingTimes.length > 0 
+        ? this.processingTimes.reduce((a, b) => a + b, 0) / this.processingTimes.length 
+        : 0;
+
+      // Update totals
+      this.totalJobsProcessed += jobsCompletedDelta;
+      this.totalJobsFailed += jobsFailedDelta;
+
+      // Get worker version from package.json
+      const workerVersion = process.env.npm_package_version || '1.0.0';
+
+      // Prepare worker config
+      const workerConfig = {
+        max_concurrent_jobs: this.maxConcurrentJobs,
+        batch_id: this.batchId,
+        user_id: this.userId,
+        worker_type: 'csv-process',
+        node_version: process.version,
+        started_at: this.workerStartTime.toISOString()
+      };
+
+      // Insert or update worker record with all columns
+      const { error } = await this.supabase
+        .from('csv_processing_workers')
+        .upsert({
+          instance_id: this.instanceId,
+          user_id: this.userId || null,
+          batch_id: this.batchId || null,
+          status: status,
+          max_concurrent_jobs: this.maxConcurrentJobs,
+          current_job_count: currentJobCount,
+          total_jobs_processed: this.totalJobsProcessed,
+          total_jobs_failed: this.totalJobsFailed,
+          average_processing_time_seconds: averageProcessingTime,
+          last_heartbeat: new Date().toISOString(),
+          last_job_completed_at: jobsCompletedDelta > 0 ? new Date().toISOString() : undefined,
+          worker_version: workerVersion,
+          worker_config: workerConfig,
+          started_at: status === 'processing' && this.totalJobsProcessed === 0 ? new Date().toISOString() : undefined,
+          stopped_at: status === 'stopped' ? new Date().toISOString() : undefined
+        }, {
+          onConflict: 'instance_id'
+        });
+
+      if (error) {
+        console.error(`[${this.jobName.toUpperCase()}] Error updating worker record:`, error);
+      } else {
+        console.log(`[${this.jobName.toUpperCase()}] Worker heartbeat updated: ${status} (jobs: ${this.totalJobsProcessed}, failed: ${this.totalJobsFailed}, avg: ${averageProcessingTime.toFixed(2)}s)`);
+      }
     } catch (error) {
       console.error(`[${this.jobName.toUpperCase()}] Error updating worker heartbeat:`, error);
       // Don't throw - heartbeat failures shouldn't stop job processing
@@ -369,11 +541,33 @@ export class CSVProcessJob extends BaseJob {
 
   protected async startRun(metadata?: any) {
     await super.startRun(metadata)
-    await this.updateWorkerHeartbeat('processing')
+    // Register worker as started
+    await this.updateWorkerHeartbeat('processing', 0, 0, 0)
+    console.log(`[${this.jobName.toUpperCase()}] Worker registered with instance ID: ${this.instanceId}`);
+    
+    await this.logMessage('INFO', 'Worker cycle started', {
+      instanceId: this.instanceId,
+      metadata: metadata
+    }, 'worker_cycle_start');
   }
 
   protected async completeRun(error?: Error) {
-    await this.updateWorkerHeartbeat(error ? 'stopped' : 'idle')
+    // Final worker status update
+    const finalStatus = error ? 'error' : 'stopped';
+    await this.updateWorkerHeartbeat(finalStatus, 0, 0, 0)
+    
+    console.log(`[${this.jobName.toUpperCase()}] Worker shutdown: processed ${this.totalJobsProcessed} jobs, ${this.totalJobsFailed} failed`);
+    
+    const runtimeSeconds = (Date.now() - this.workerStartTime.getTime()) / 1000;
+    
+    await this.logMessage(error ? 'ERROR' : 'INFO', 'Worker cycle completed', {
+      instanceId: this.instanceId,
+      totalJobsProcessed: this.totalJobsProcessed,
+      totalJobsFailed: this.totalJobsFailed,
+      runtimeSeconds: runtimeSeconds,
+      error: error ? (error instanceof Error ? error.message : 'Unknown error') : undefined
+    }, 'worker_cycle_complete', undefined, undefined, Math.round(runtimeSeconds * 1000));
+    
     await super.completeRun(error)
   }
 }
