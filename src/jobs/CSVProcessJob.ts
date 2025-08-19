@@ -31,9 +31,9 @@ export class CSVProcessJob extends BaseJob {
     // Initialize OpenAI image generator only
     try {
       this.imageGenerator = new ImageGenerator()
-      this.logMessage('INFO', 'OpenAI ImageGenerator initialized successfully', null, 'initialization')
+      // No logging for initialization - not job/batch specific
     } catch (error) {
-      this.logMessage('FATAL', 'Failed to initialize OpenAI ImageGenerator', { error: error instanceof Error ? error.message : 'Unknown error' }, 'initialization')
+      // No logging for initialization errors - not job/batch specific
       throw new Error(`CSV processing requires OpenAI ImageGenerator: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
@@ -43,12 +43,7 @@ export class CSVProcessJob extends BaseJob {
     console.log(`[${this.jobName.toUpperCase()}] Batch ID: ${this.batchId || 'ALL'}, User ID: ${this.userId || 'ALL'}`);
     console.log(`[${this.jobName.toUpperCase()}] Max concurrent jobs: ${this.maxConcurrentJobs}`);
     
-    await this.logMessage('INFO', 'CSV processing worker started', {
-      batchId: this.batchId,
-      userId: this.userId,
-      maxConcurrentJobs: this.maxConcurrentJobs,
-      instanceId: this.instanceId
-    }, 'worker_start');
+    // No logging for worker startup - not job/batch specific
     
     while (true) {
       try {
@@ -110,13 +105,13 @@ export class CSVProcessJob extends BaseJob {
 
     if (error) {
       console.error(`[${this.jobName.toUpperCase()}] Error checking for available jobs:`, error);
-      await this.logMessage('ERROR', 'Failed to check for available jobs', { error: error.message }, 'job_check');
+      // No logging for job check errors - not job/batch specific
       return false;
     }
 
     const hasJobs = jobs && jobs.length > 0;
     if (!hasJobs) {
-      await this.logMessage('DEBUG', 'No jobs available for processing', null, 'job_check');
+      // No logging for no jobs available - not job/batch specific
     }
 
     return hasJobs;
@@ -134,7 +129,7 @@ export class CSVProcessJob extends BaseJob {
 
     if (error) {
       console.error(`[${this.jobName.toUpperCase()}] Error claiming job:`, error);
-      await this.logMessage('ERROR', 'Failed to claim next job', { error: error.message }, 'job_claim');
+      // No logging for job claim errors - not job/batch specific
       throw error;
     }
 
@@ -230,6 +225,9 @@ export class CSVProcessJob extends BaseJob {
     // Build trigger from row data
     const trigger = this.buildTriggerFromRow(rowData);
 
+    // Create image_generations record to track this generation request
+    const imageGenerationRecord = await this.createImageGenerationRecord(trigger, rowData, job);
+
     // Generate image prompts using existing agentic workflow with hardcoded styles
     // Call generateImagePrompts once for each style since it only generates one prompt per call
     const hardcodedStyles = ['lifestyle_emotional', 'white_background'];
@@ -261,7 +259,10 @@ export class CSVProcessJob extends BaseJob {
     console.log(`[${this.jobName.toUpperCase()}] Prompt details:`, generatedPrompts.prompts?.map((p: any) => ({ style: p.style, hasPrompt: !!p.variant?.prompt })));
 
     // Generate actual images from the prompts and store in database
-    const { generatedImages, generatedImageIds } = await this.generateImagesFromPrompts(generatedPrompts, job.id);
+    const { generatedImages, generatedImageIds } = await this.generateImagesFromPrompts(generatedPrompts, job.id, imageGenerationRecord.id);
+    
+    // Update image_generations record with completion status and image IDs
+    await this.updateImageGenerationRecord(imageGenerationRecord.id, generatedPrompts, generatedImageIds, generatedImages.length > 0 ? 'completed' : 'failed');
     
     const processingTime = (Date.now() - startTime) / 1000;
     
@@ -273,11 +274,12 @@ export class CSVProcessJob extends BaseJob {
       generated_images: generatedImages,
       generated_image_ids: generatedImageIds,
       processing_time_seconds: processingTime,
-      styles_used: hardcodedStyles
+      styles_used: hardcodedStyles,
+      image_generation_id: imageGenerationRecord.id
     };
   }
 
-  private async generateImagesFromPrompts(promptsResult: any, jobId: string): Promise<{ generatedImages: any[], generatedImageIds: string[] }> {
+  private async generateImagesFromPrompts(promptsResult: any, jobId: string, imageGenerationId: string): Promise<{ generatedImages: any[], generatedImageIds: string[] }> {
     const images: any[] = [];
     const imageIds: string[] = [];
     
@@ -289,11 +291,14 @@ export class CSVProcessJob extends BaseJob {
     console.log(`[${this.jobName.toUpperCase()}] Starting image generation for ${promptsResult.prompts.length} prompts`);
     console.log(`[${this.jobName.toUpperCase()}] Prompts breakdown:`, promptsResult.prompts.map((p: any) => ({ style: p.style, hasVariant: !!p.variant, hasPrompt: !!p.variant?.prompt })));
     
+    // Get batch_id from the CSV job processing context
+    const batchIdForLogging = this.batchId;
+    
     await this.logMessage('INFO', 'Starting image generation', {
       promptCount: promptsResult.prompts.length,
       promptsBreakdown: promptsResult.prompts.map((p: any) => ({ style: p.style, hasPrompt: !!p.variant?.prompt })),
       jobId: jobId
-    }, 'image_generation_start', undefined, jobId);
+    }, 'image_generation_start', batchIdForLogging, jobId);
 
     for (let i = 0; i < promptsResult.prompts.length; i++) {
       const promptObj = promptsResult.prompts[i];
@@ -303,13 +308,7 @@ export class CSVProcessJob extends BaseJob {
       if (!prompt) {
         console.log(`[${this.jobName.toUpperCase()}] Skipping prompt ${i + 1}: No prompt text available for style ${style}`);
         console.log(`[${this.jobName.toUpperCase()}] Prompt object:`, JSON.stringify(promptObj, null, 2));
-        await this.logMessage('WARN', 'Skipping prompt generation - no prompt text', {
-          promptIndex: i + 1,
-          style: style,
-          promptObj: promptObj,
-          hasVariant: !!promptObj.variant,
-          variantKeys: promptObj.variant ? Object.keys(promptObj.variant) : []
-        }, 'prompt_skip', undefined, jobId);
+        // Skipping prompt without logging - not essential for job/batch tracking
         continue;
       }
 
@@ -321,11 +320,7 @@ export class CSVProcessJob extends BaseJob {
         // Use OpenAI DALL-E for image generation only
         console.log(`[${this.jobName.toUpperCase()}] Generating image using OpenAI DALL-E (gpt-image-1)...`);
         
-        await this.logMessage('INFO', 'Starting DALL-E image generation', {
-          style: style,
-          promptIndex: i + 1,
-          promptPreview: prompt.substring(0, 100)
-        }, 'dalle_generation_start', undefined, jobId);
+        // No logging for individual DALL-E starts - too verbose
         
         const imageBuffers = await this.imageGenerator.generateImages(prompt, 1);
         
@@ -351,11 +346,11 @@ export class CSVProcessJob extends BaseJob {
 
         if (storageError) {
           console.error(`[${this.jobName.toUpperCase()}] Failed to upload image to storage:`, storageError);
-          await this.logMessage('ERROR', 'Failed to upload image to storage', {
-            error: storageError.message || JSON.stringify(storageError),
-            storagePath: storagePath,
-            style: style
-          }, 'storage_upload_error', undefined, jobId);
+                  await this.logMessage('ERROR', 'Failed to upload image to storage', {
+          error: storageError.message || JSON.stringify(storageError),
+          storagePath: storagePath,
+          style: style
+        }, 'storage_upload_error', batchIdForLogging, jobId);
           throw new Error(`Failed to upload image to storage: ${storageError.message || 'Unknown error'}`);
         }
 
@@ -370,7 +365,7 @@ export class CSVProcessJob extends BaseJob {
           storagePath: storagePath,
           storageUrl: storageUrl,
           style: style
-        }, 'storage_upload_success', undefined, jobId);
+        }, 'storage_upload_success', batchIdForLogging, jobId);
         
         // Store image in images table with correct column names
         const { data: imageRecord, error: imageError } = await this.supabase
@@ -383,8 +378,9 @@ export class CSVProcessJob extends BaseJob {
             style_type: style,
             prompt_used: prompt,
             model_name: 'gpt-image-1',
-            generation_source: 'api', // Since this is from CSV processing API
+            generation_source: 'csv', // CSV processing source
             format: 'png',
+            generation_id: imageGenerationId, // Link to image_generations record
             generation_metadata: {
               csv_job_id: jobId,
               style: style,
@@ -462,7 +458,7 @@ export class CSVProcessJob extends BaseJob {
           storageUrl: storageUrl,
           storagePath: storagePath,
           storageBucket: 'google_sem'
-        }, 'image_generation_success', undefined, jobId, imageGenerationTime);
+        }, 'image_generation_success', batchIdForLogging, jobId, imageGenerationTime);
 
       } catch (error) {
         const imageGenerationTime = Date.now() - imageStartTime;
@@ -474,7 +470,7 @@ export class CSVProcessJob extends BaseJob {
           error: error instanceof Error ? error.message : 'Unknown error',
           generationTimeMs: imageGenerationTime,
           stack: error instanceof Error ? error.stack : undefined
-        }, 'image_generation_error', undefined, jobId, imageGenerationTime);
+        }, 'image_generation_error', batchIdForLogging, jobId, imageGenerationTime);
         
         // Add error entry instead of failing the entire job
         images.push({
@@ -650,16 +646,110 @@ export class CSVProcessJob extends BaseJob {
     }
   }
 
+  /**
+   * Create a record in image_generations table to track the CSV generation request
+   */
+  private async createImageGenerationRecord(trigger: string, rowData: CsvRowData, job: any): Promise<any> {
+    try {
+      const { data, error } = await this.supabase
+        .from('image_generations')
+        .insert({
+          user_id: this.userId,
+          trigger: trigger,
+          persona: null, // CSV doesn't have persona data
+          products: rowData, // Store the entire row data as products
+          prompt_json: null, // Will be updated after prompt generation
+          style: 'lifestyle_emotional,white_background', // Both styles we're generating
+          model: 'gpt-image-1', // Our image generation model
+          image_ids: null, // Will be updated after image generation
+          status: 'pending',
+          started_at: new Date().toISOString(),
+          completed_at: null,
+          error_message: null,
+          calendar_event_id: null, // CSV doesn't relate to calendar events
+          event_summary: null,
+          user_style_preferences: [],
+          number_of_variations_requested: 2, // Two styles = two variations
+          generation_source: 'csv', // New source type for CSV
+          manual_trigger_data: {
+            csv_batch_id: job.batch_id,
+            csv_row_job_id: job.id,
+            csv_row_data: rowData
+          }
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error(`[${this.jobName.toUpperCase()}] Error creating image_generations record:`, error);
+        throw error;
+      }
+
+      console.log(`[${this.jobName.toUpperCase()}] Created image_generations record with ID: ${data.id}`);
+      
+      await this.logMessage('INFO', 'Created image_generations record', {
+        imageGenerationId: data.id,
+        trigger: trigger,
+        csvRowJobId: job.id,
+        batchId: job.batch_id
+      }, 'image_generation_record_created', undefined, job.id);
+
+      return data;
+    } catch (error) {
+      console.error(`[${this.jobName.toUpperCase()}] Failed to create image_generations record:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update the image_generations record with completion status and results
+   */
+  private async updateImageGenerationRecord(imageGenerationId: string, promptsResult: any, imageIds: string[], status: string): Promise<void> {
+    try {
+      const updateData: any = {
+        prompt_json: promptsResult,
+        image_ids: imageIds,
+        status: status,
+        completed_at: new Date().toISOString()
+      };
+
+      // If failed status, we might want to add error message
+      if (status === 'failed' && imageIds.length === 0) {
+        updateData.error_message = 'No images were successfully generated';
+      }
+
+      const { error } = await this.supabase
+        .from('image_generations')
+        .update(updateData)
+        .eq('id', imageGenerationId);
+
+      if (error) {
+        console.error(`[${this.jobName.toUpperCase()}] Error updating image_generations record:`, error);
+        throw error;
+      }
+
+      console.log(`[${this.jobName.toUpperCase()}] Updated image_generations record ${imageGenerationId} with status: ${status}, images: ${imageIds.length}`);
+      
+      await this.logMessage('INFO', 'Updated image_generations record', {
+        imageGenerationId: imageGenerationId,
+        status: status,
+        imageCount: imageIds.length,
+        promptCount: promptsResult.prompts?.length || 0
+      }, 'image_generation_record_updated');
+
+    } catch (error) {
+      console.error(`[${this.jobName.toUpperCase()}] Failed to update image_generations record:`, error);
+      // Don't throw - this shouldn't stop the job processing
+    }
+  }
+
   protected async startRun(metadata?: any) {
     await super.startRun(metadata)
     // Register worker as started
     await this.updateWorkerHeartbeat('processing', 0, 0, 0)
     console.log(`[${this.jobName.toUpperCase()}] Worker registered with instance ID: ${this.instanceId}`);
     
-    await this.logMessage('INFO', 'Worker cycle started', {
-      instanceId: this.instanceId,
-      metadata: metadata
-    }, 'worker_cycle_start');
+    // No logging for worker cycle start - not job/batch specific
   }
 
   protected async completeRun(error?: Error) {
@@ -671,13 +761,7 @@ export class CSVProcessJob extends BaseJob {
     
     const runtimeSeconds = (Date.now() - this.workerStartTime.getTime()) / 1000;
     
-    await this.logMessage(error ? 'ERROR' : 'INFO', 'Worker cycle completed', {
-      instanceId: this.instanceId,
-      totalJobsProcessed: this.totalJobsProcessed,
-      totalJobsFailed: this.totalJobsFailed,
-      runtimeSeconds: runtimeSeconds,
-      error: error ? (error instanceof Error ? error.message : 'Unknown error') : undefined
-    }, 'worker_cycle_complete', undefined, undefined, Math.round(runtimeSeconds * 1000));
+    // No logging for worker cycle completion - not job/batch specific
     
     await super.completeRun(error)
   }
