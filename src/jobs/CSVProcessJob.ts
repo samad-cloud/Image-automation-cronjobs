@@ -1,6 +1,7 @@
 import { BaseJob } from './BaseJob'
 import { generateImagePrompts } from './agentWorkflow'
 import { CsvBatch, CsvRowJob } from '../../supabase/types'
+import { ImageGenerator } from '../services/ImageGenerator'
 
 interface CsvRowData {
   country: string
@@ -15,11 +16,21 @@ interface CsvRowData {
 export class CSVProcessJob extends BaseJob {
   private batchId?: string
   private maxConcurrentJobs: number
+  private imageGenerator: ImageGenerator
 
   constructor(userId?: string, batchId?: string, maxConcurrentJobs: number = 3) {
     super('csv-process', userId)
     this.batchId = batchId
     this.maxConcurrentJobs = maxConcurrentJobs
+    
+    // Initialize OpenAI image generator only
+    try {
+      this.imageGenerator = new ImageGenerator()
+      console.log(`[${this.jobName.toUpperCase()}] OpenAI ImageGenerator initialized successfully`)
+    } catch (error) {
+      console.error(`[${this.jobName.toUpperCase()}] Failed to initialize OpenAI ImageGenerator:`, error)
+      throw new Error(`CSV processing requires OpenAI ImageGenerator: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    }
   }
 
   async execute(): Promise<void> {
@@ -168,16 +179,126 @@ export class CSVProcessJob extends BaseJob {
     
     const generatedPrompts = await generateImagePrompts(trigger, hardcodedStyles);
     
+    console.log(`[${this.jobName.toUpperCase()}] Generated ${generatedPrompts.prompts?.length || 0} prompts`);
+
+    // Generate actual images from the prompts and store in database
+    const { generatedImages, generatedImageIds } = await this.generateImagesFromPrompts(generatedPrompts, job.id);
+    
     const processingTime = (Date.now() - startTime) / 1000;
     
-    console.log(`[${this.jobName.toUpperCase()}] Generated ${generatedPrompts.prompts?.length || 0} prompts in ${processingTime.toFixed(2)}s`);
+    console.log(`[${this.jobName.toUpperCase()}] Generated ${generatedImages.length} images with IDs ${generatedImageIds} in ${processingTime.toFixed(2)}s total`);
 
     return {
       trigger_text: trigger,
       generated_prompts: generatedPrompts,
+      generated_images: generatedImages,
+      generated_image_ids: generatedImageIds,
       processing_time_seconds: processingTime,
       styles_used: hardcodedStyles
     };
+  }
+
+  private async generateImagesFromPrompts(promptsResult: any, jobId: string): Promise<{ generatedImages: any[], generatedImageIds: string[] }> {
+    const images: any[] = [];
+    const imageIds: string[] = [];
+    
+    if (!promptsResult.prompts || promptsResult.prompts.length === 0) {
+      console.log(`[${this.jobName.toUpperCase()}] No prompts available for image generation`);
+      return { generatedImages: images, generatedImageIds: imageIds };
+    }
+
+    console.log(`[${this.jobName.toUpperCase()}] Starting image generation for ${promptsResult.prompts.length} prompts`);
+
+    for (let i = 0; i < promptsResult.prompts.length; i++) {
+      const promptObj = promptsResult.prompts[i];
+      const style = promptObj.style;
+      const prompt = promptObj.variant?.prompt;
+
+      if (!prompt) {
+        console.log(`[${this.jobName.toUpperCase()}] Skipping prompt ${i + 1}: No prompt text available`);
+        continue;
+      }
+
+      console.log(`[${this.jobName.toUpperCase()}] Generating image ${i + 1}/${promptsResult.prompts.length} (${style}): "${prompt.substring(0, 100)}..."`);
+
+      try {
+        // Use OpenAI DALL-E for image generation only
+        console.log(`[${this.jobName.toUpperCase()}] Generating image using OpenAI DALL-E (gpt-image-1)...`);
+        
+        const imageBuffers = await this.imageGenerator.generateImages(prompt, 1);
+        
+        if (imageBuffers.length === 0 || !imageBuffers[0]) {
+          throw new Error('OpenAI DALL-E returned no image data');
+        }
+
+        console.log(`[${this.jobName.toUpperCase()}] Successfully generated image using OpenAI DALL-E`);
+
+        // Convert buffer to base64 for storage
+        const imageBase64 = imageBuffers[0].toString('base64');
+        
+        // Store image in generated_images table
+        const { data: imageRecord, error: imageError } = await this.supabase
+          .from('generated_images')
+          .insert({
+            user_id: this.userId,
+            trigger: promptsResult.trigger || 'CSV processing',
+            prompt: prompt,
+            model: 'gpt-image-1',
+            image_data: imageBase64,
+            filename: `csv_${jobId}_${style}_${i + 1}.png`,
+            image_title: promptObj.variant?.Image_title || `${style} image`,
+            image_description: promptObj.variant?.Image_description || prompt.substring(0, 200),
+            tags: [style, 'csv-generated'],
+            metadata: {
+              csv_job_id: jobId,
+              style: style,
+              prompt_index: i,
+              generated_from: 'csv-processing'
+            }
+          })
+          .select('id')
+          .single();
+
+        if (imageError) {
+          console.error(`[${this.jobName.toUpperCase()}] Failed to store image in database:`, imageError);
+          throw new Error(`Failed to store image: ${imageError.message}`);
+        }
+
+        const imageId = imageRecord.id;
+        imageIds.push(imageId);
+        
+        // Store image metadata for the job result (keeping for backward compatibility)
+        images.push({
+          id: imageId,
+          style: style,
+          prompt: prompt,
+          image_data: imageBase64,
+          generator: 'gpt-image-1',
+          generated_at: new Date().toISOString(),
+          image_title: promptObj.variant?.Image_title || `${style} image`,
+          image_description: promptObj.variant?.Image_description || prompt.substring(0, 200)
+        });
+
+        console.log(`[${this.jobName.toUpperCase()}] Successfully generated and stored image for style: ${style} with ID: ${imageId}`);
+
+      } catch (error) {
+        console.error(`[${this.jobName.toUpperCase()}] Failed to generate image for style ${style}:`, error);
+        
+        // Add error entry instead of failing the entire job
+        images.push({
+          style: style,
+          prompt: prompt,
+          image_data: null,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          generated_at: new Date().toISOString(),
+          image_title: promptObj.variant?.Image_title || `${style} image (failed)`,
+          image_description: promptObj.variant?.Image_description || prompt.substring(0, 200)
+        });
+      }
+    }
+
+    console.log(`[${this.jobName.toUpperCase()}] Image generation complete: ${images.filter(img => img.image_data).length}/${images.length} successful`);
+    return { generatedImages: images, generatedImageIds: imageIds };
   }
 
   private async updateJobStatus(
@@ -196,10 +317,14 @@ export class CSVProcessJob extends BaseJob {
     if (result) {
       updateData.p_trigger_text = result.trigger_text
       updateData.p_generated_prompts = result.generated_prompts
+      updateData.p_generated_images = result.generated_images
+      updateData.p_generated_image_ids = result.generated_image_ids
       updateData.p_processing_time_seconds = result.processing_time_seconds
       // Store additional metadata
       updateData.p_error_details = {
         styles_used: result.styles_used,
+        images_generated: result.generated_images?.length || 0,
+        image_ids_generated: result.generated_image_ids?.length || 0,
         timestamp: new Date().toISOString()
       }
     }

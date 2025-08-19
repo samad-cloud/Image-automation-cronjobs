@@ -115,6 +115,7 @@ export interface CsvRowJob {
   generated_prompts: Json | null
   generated_images: Json | null
   generated_tags: Json | null
+  generated_image_ids: string[] | null
   claimed_by: string | null
   claimed_at: string | null
   processing_timeout_at: string | null

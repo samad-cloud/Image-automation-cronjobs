@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS csv_row_jobs (
     generated_prompts JSONB, -- Array of prompts generated
     generated_images JSONB, -- Array of ImageData objects
     generated_tags JSONB, -- Array of TagData objects
+    generated_image_ids UUID[], -- Array of generated_images table IDs for linking
     
     -- Worker and timing info
     claimed_by TEXT, -- Worker instance ID that claimed this job
@@ -561,40 +562,7 @@ CREATE INDEX IF NOT EXISTS idx_csv_templates_default ON csv_templates(template_t
 ALTER TABLE csv_batches ADD COLUMN template_id UUID REFERENCES csv_templates(id);
 CREATE INDEX IF NOT EXISTS idx_csv_batches_template ON csv_batches(template_id);
 
--- Function to get available CSV templates
-CREATE OR REPLACE FUNCTION get_available_csv_templates(
-    p_template_type TEXT DEFAULT NULL
-)
-RETURNS TABLE(
-    id UUID,
-    name TEXT,
-    description TEXT,
-    template_type TEXT,
-    required_columns TEXT[],
-    optional_columns TEXT[],
-    column_descriptions JSONB,
-    sample_data JSONB,
-    is_default BOOLEAN,
-    download_count INTEGER
-)
-LANGUAGE sql
-AS $$
-    SELECT 
-        t.id,
-        t.name,
-        t.description,
-        t.template_type,
-        t.required_columns,
-        t.optional_columns,
-        t.column_descriptions,
-        t.sample_data,
-        t.is_default,
-        t.download_count
-    FROM csv_templates t
-    WHERE t.is_active = true
-    AND (p_template_type IS NULL OR t.template_type = p_template_type)
-    ORDER BY t.is_default DESC, t.download_count DESC, t.name ASC;
-$$;
+
 
 -- Function to increment template download count
 CREATE OR REPLACE FUNCTION increment_template_download(p_template_id UUID)
@@ -807,17 +775,67 @@ ALTER PUBLICATION supabase_realtime ADD TABLE csv_row_jobs;
 ALTER PUBLICATION supabase_realtime ADD TABLE csv_processing_workers;
 
 -- =====================================================
+-- ROW LEVEL SECURITY POLICIES
+-- =====================================================
+
+-- Enable RLS on all CSV tables
+ALTER TABLE csv_batches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE csv_row_jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE csv_processing_workers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE csv_templates ENABLE ROW LEVEL SECURITY;
+
+-- csv_batches policies
+CREATE POLICY "Users can view their own csv_batches" ON csv_batches
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own csv_batches" ON csv_batches
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own csv_batches" ON csv_batches
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Service role has full access to csv_batches" ON csv_batches
+  FOR ALL USING (auth.role() = 'service_role');
+
+-- csv_row_jobs policies  
+CREATE POLICY "Users can view their own csv_row_jobs" ON csv_row_jobs
+  FOR SELECT USING (
+    auth.uid() IN (
+      SELECT user_id FROM csv_batches WHERE id = csv_row_jobs.batch_id
+    )
+  );
+
+CREATE POLICY "Service role has full access to csv_row_jobs" ON csv_row_jobs
+  FOR ALL USING (auth.role() = 'service_role');
+
+-- csv_processing_workers policies
+CREATE POLICY "Service role has full access to csv_processing_workers" ON csv_processing_workers
+  FOR ALL USING (auth.role() = 'service_role');
+
+-- csv_templates policies
+CREATE POLICY "Anyone can view csv_templates" ON csv_templates
+  FOR SELECT USING (true);
+
+CREATE POLICY "Authenticated users can insert csv_templates" ON csv_templates
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Service role has full access to csv_templates" ON csv_templates
+  FOR ALL USING (auth.role() = 'service_role');
+
+-- =====================================================
 -- SQL FUNCTIONS FOR CSV PROCESSING
 -- =====================================================
 
 -- Drop existing functions if they exist (to handle type changes)
 DROP FUNCTION IF EXISTS claim_next_csv_row_job(text, uuid, integer);
 DROP FUNCTION IF EXISTS update_csv_row_job_result(uuid, text, text, jsonb, jsonb, jsonb, numeric, text, jsonb);
+DROP FUNCTION IF EXISTS update_csv_row_job_result(uuid, text, text, jsonb, jsonb, jsonb, uuid[], numeric, text, jsonb);
 DROP FUNCTION IF EXISTS update_csv_worker_heartbeat(text, text, integer, integer, integer);
 DROP FUNCTION IF EXISTS get_csv_batch_progress(uuid);
 DROP FUNCTION IF EXISTS update_csv_batch_progress(uuid);
 DROP FUNCTION IF EXISTS cleanup_stale_csv_workers(integer);
 DROP FUNCTION IF EXISTS get_available_csv_templates();
+DROP FUNCTION IF EXISTS get_available_csv_templates(text);
 DROP FUNCTION IF EXISTS increment_template_download(uuid);
 
 -- Function to claim the next available CSV row job
@@ -865,6 +883,7 @@ CREATE OR REPLACE FUNCTION update_csv_row_job_result(
     p_generated_prompts JSONB DEFAULT NULL,
     p_generated_images JSONB DEFAULT NULL,
     p_generated_tags JSONB DEFAULT NULL,
+    p_generated_image_ids UUID[] DEFAULT NULL,
     p_processing_time_seconds NUMERIC DEFAULT NULL,
     p_error_message TEXT DEFAULT NULL,
     p_error_details JSONB DEFAULT NULL
@@ -877,6 +896,7 @@ BEGIN
         generated_prompts = COALESCE(p_generated_prompts, generated_prompts),
         generated_images = COALESCE(p_generated_images, generated_images),
         generated_tags = COALESCE(p_generated_tags, generated_tags),
+        generated_image_ids = COALESCE(p_generated_image_ids, generated_image_ids),
         processing_time_seconds = COALESCE(p_processing_time_seconds, processing_time_seconds),
         error_message = CASE WHEN p_status = 'failed' THEN p_error_message ELSE NULL END,
         error_details = CASE WHEN p_status = 'failed' THEN p_error_details ELSE NULL END,
@@ -970,18 +990,17 @@ BEGIN
     SET 
         processed_rows = progress_info.completed_jobs + progress_info.failed_jobs,
         failed_rows = progress_info.failed_jobs,
-        progress_percentage = progress_info.progress_percentage,
         status = CASE 
             WHEN progress_info.pending_jobs = 0 AND progress_info.processing_jobs = 0 THEN 
                 CASE WHEN progress_info.failed_jobs = 0 THEN 'completed' ELSE 'failed' END
             WHEN progress_info.processing_jobs > 0 OR batch_info.status = 'queued' THEN 'processing'
             ELSE batch_info.status
         END,
-        processing_started_at = CASE 
+        started_at = CASE 
             WHEN batch_info.status = 'queued' AND progress_info.processing_jobs > 0 THEN NOW()
-            ELSE (SELECT processing_started_at FROM csv_batches WHERE id = p_batch_id)
+            ELSE (SELECT started_at FROM csv_batches WHERE id = p_batch_id)
         END,
-        processing_completed_at = CASE 
+        completed_at = CASE 
             WHEN progress_info.pending_jobs = 0 AND progress_info.processing_jobs = 0 THEN NOW()
             ELSE NULL
         END
@@ -1018,13 +1037,36 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to get available templates
+-- Function to get available templates (no parameters version for frontend)
 CREATE OR REPLACE FUNCTION get_available_csv_templates()
-RETURNS SETOF csv_templates AS $$
+RETURNS TABLE(
+    id UUID,
+    name TEXT,
+    description TEXT,
+    template_type TEXT,
+    required_columns TEXT[],
+    optional_columns TEXT[],
+    column_descriptions JSONB,
+    sample_data JSONB,
+    is_default BOOLEAN,
+    download_count INTEGER
+) AS $$
 BEGIN
     RETURN QUERY
-    SELECT * FROM csv_templates 
-    ORDER BY is_default DESC, created_at ASC;
+    SELECT 
+        t.id,
+        t.name,
+        t.description,
+        t.template_type,
+        t.required_columns,
+        t.optional_columns,
+        t.column_descriptions,
+        t.sample_data,
+        t.is_default,
+        t.download_count
+    FROM csv_templates t
+    WHERE t.is_active = true
+    ORDER BY t.is_default DESC, t.download_count DESC, t.name ASC;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
