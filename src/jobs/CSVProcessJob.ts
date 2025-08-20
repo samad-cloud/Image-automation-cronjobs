@@ -198,13 +198,36 @@ export class CSVProcessJob extends BaseJob {
     }
   }
 
+  private mapProductType(productType: string, mpn?: string): string {
+    // Apply product type mapping rules
+    if (mpn === 'mug_magic_black' && productType === 'Mug') {
+      return 'Magic Mug Black';
+    }
+    
+    switch (productType) {
+      case 'boxedpuzzle':
+        return 'Puzzle';
+      case 'LabPrint':
+        return 'Photo Print';
+      case 'PhotoTile':
+        return 'Tile';
+      case 'MetalPrint':
+        return 'Metal Print';
+      default:
+        return productType;
+    }
+  }
+
   private buildTriggerFromRow(rowData: CsvRowData): string {
     const { country, product_type, mpn, size, title, description } = rowData;
+    
+    // Map product type according to rules
+    const mappedProductType = this.mapProductType(product_type, mpn);
     
     // Build trigger exactly as specified: country + product_type + size + mpn + description
     const triggerParts = [
       country && `Country: ${country}`,
-      product_type && `Product Type: ${product_type}`,
+      mappedProductType && `Product Type: ${mappedProductType}`,
       size && `Size: ${size}`,
       mpn && `MPN: ${mpn}`,
       description && `Description: ${description}`
