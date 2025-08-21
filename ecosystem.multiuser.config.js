@@ -67,6 +67,22 @@ module.exports = {
       instance_var: "INSTANCE_ID",
       // Start this only if orchestrator is down
       start: false
+    },
+    {
+      name: "multi-user-post-process",
+      script: "npx",
+      args: "ts-node --project tsconfig.prod.json src/jobs/postProcessEntry.ts",
+      instances: 1,
+      autorestart: false,
+      max_restarts: 5,
+      min_uptime: "30s",
+      restart_delay: 10000,
+      watch: ["src/jobs/PostProcessJob.ts", "src/services/ImageEditService.ts"],
+      env: {
+        NODE_ENV: "production"
+      },
+      cron_restart: "*/5 * * * *",
+      start: true
     }
   ]
 }
