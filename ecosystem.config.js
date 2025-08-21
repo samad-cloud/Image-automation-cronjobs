@@ -29,6 +29,22 @@ module.exports = {
         NODE_ENV: "development"
       },
       instance_var: "INSTANCE_ID"
+    },
+    {
+      name: "post-process",
+      script: "npx",
+      args: "ts-node src/jobs/postProcessEntry.ts",
+      instances: 1,
+      autorestart: false,
+      max_restarts: 10,
+      min_uptime: "10s",
+      restart_delay: 5000,
+      watch: ["src/jobs/PostProcessJob.ts", "src/services/ImageEditService.ts"],
+      cron_restart: "*/5 * * * *",
+      env: {
+        NODE_ENV: "development"
+      },
+      instance_var: "INSTANCE_ID"
     }
   ]
 }
