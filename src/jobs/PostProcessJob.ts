@@ -72,6 +72,7 @@ export class PostProcessJob extends BaseJob {
       .from('images')
       .select('*')
       .eq('style_type', 'lifestyle_emotional')
+      .eq('generation_source', 'csv')
       .order('created_at', { ascending: false })
       .limit(50)
 
