@@ -79,7 +79,10 @@ module.exports = {
       restart_delay: 10000,
       watch: ["src/jobs/PostProcessJob.ts", "src/services/ImageEditService.ts"],
       env: {
-        NODE_ENV: "production"
+        NODE_ENV: "production",
+        SUPABASE_URL: process.env.SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+        OPENAI_API_KEY: process.env.OPENAI_API_KEY
       },
       cron_restart: "*/5 * * * *",
       start: true

@@ -1,7 +1,6 @@
 import { BaseJob } from './BaseJob'
 import { StorageService } from '../services/StorageService'
 import { ImageEditService } from '../services/ImageEditService'
-import { Database } from '../../supabase/types'
 
 type DbImage = {
   id: string

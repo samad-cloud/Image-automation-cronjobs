@@ -84,7 +84,7 @@ Return a single photorealistic result.`
             { type: 'input_text', text: prompt },
             { type: 'input_image', image_url: `data:image/png;base64,${baseB64}`, detail: 'high' },
             { type: 'input_image', image_url: `data:image/png;base64,${donorB64}`, detail: 'high' }
-          ]
+          ] as any
         }
       ],
       tools: [{ type: 'image_generation', input_fidelity: 'high' }],

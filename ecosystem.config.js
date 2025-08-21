@@ -42,7 +42,10 @@ module.exports = {
       watch: ["src/jobs/PostProcessJob.ts", "src/services/ImageEditService.ts"],
       cron_restart: "*/5 * * * *",
       env: {
-        NODE_ENV: "development"
+        NODE_ENV: "development",
+        SUPABASE_URL: process.env.SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+        OPENAI_API_KEY: process.env.OPENAI_API_KEY
       },
       instance_var: "INSTANCE_ID"
     }
