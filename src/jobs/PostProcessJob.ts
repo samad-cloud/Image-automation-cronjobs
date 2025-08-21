@@ -131,7 +131,6 @@ export class PostProcessJob extends BaseJob {
       style_type: lifestyle.style_type, // keep same style so they appear together in UI
       model_name: (lifestyle as any).model_name || 'gpt-image-1',
       tags: (lifestyle as any).tags || [],
-      generation_status: 'completed',
       prompt_used: 'post-process: synced placeholder from white_background',
       width: lifestyle.width || null,
       height: lifestyle.height || null,
