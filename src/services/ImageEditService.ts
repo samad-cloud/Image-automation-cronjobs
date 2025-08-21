@@ -68,12 +68,7 @@ export class ImageEditService {
       this.fetchUrlToBase64(donorImageUrl)
     ])
 
-    const prompt = `You are editing the BASE product image to guarantee that the printed placeholder photo on the product matches the DONOR product image exactly.
-Rules:
-- Keep the product geometry, texture, material finish, and background of the BASE image unchanged.
-- Copy the donor's printed photo content onto the print area of the product in the BASE image so they visually match for ad and website parity.
-- Do not stylize or change the donor photo; preserve its content. Only adjust perspective as needed so it aligns naturally on the BASE product.
-Return a single photorealistic result.`
+    const prompt = `You have 2 input images: 1 lifestyle image and 1 white-background image. Your job is to ensure the printed photo on the lifestyle image matches the white-background image exactly. Make sure it's the product photo exactly. For this process, take the placeholder image on the product in the lifestyle image and replace it with the placeholder image on the white-background image. Ensure that all other aspects of the white background image are preserved. Return a single photorealistic result.`
 
     const response = await this.client.responses.create({
       model: 'gpt-4.1',

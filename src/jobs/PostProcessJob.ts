@@ -84,6 +84,20 @@ export class PostProcessJob extends BaseJob {
     for (const life of lifestyleImages || []) {
       if (!life.generation_id) continue
 
+      // Check if this generation already has a synced image (avoid reprocessing)
+      const { data: existingSynced } = await this.supabase
+        .from('images')
+        .select('id')
+        .eq('generation_id', life.generation_id)
+        .ilike('storage_url', '%_synced.png')
+        .limit(1)
+        .maybeSingle()
+
+      if (existingSynced) {
+        // Already processed this generation, skip it
+        continue
+      }
+
       // Find matching white_background in same generation
       const { data: white } = await this.supabase
         .from('images')
