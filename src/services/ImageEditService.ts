@@ -75,19 +75,19 @@ Rules:
 - Do not stylize or change the donor photo; preserve its content. Only adjust perspective as needed so it aligns naturally on the BASE product.
 Return a single photorealistic result.`
 
-    const response: any = await this.client.responses.create({
+    const response = await this.client.responses.create({
       model: 'gpt-4.1',
       input: [
         {
           role: 'user',
           content: [
             { type: 'input_text', text: prompt },
-            { type: 'input_image', image_url: `data:image/png;base64,${baseB64}` },
-            { type: 'input_image', image_url: `data:image/png;base64,${donorB64}` }
+            { type: 'input_image', image_url: `data:image/png;base64,${baseB64}`, detail: 'high' },
+            { type: 'input_image', image_url: `data:image/png;base64,${donorB64}`, detail: 'high' }
           ]
         }
       ],
-      tools: [{ type: 'image_generation' }],
+      tools: [{ type: 'image_generation', input_fidelity: 'high' }],
       metadata: { seed: this.hashToSeed(generationId).toString(), size }
     })
 
